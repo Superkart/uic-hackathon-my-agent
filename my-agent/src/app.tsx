@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useState, useEffect, useRef } from "react";
 import { PatientMetrics } from "./PatientMetrics";
 import { RiskDashboard } from "./RiskDashboard";
+import { ReportsTab } from "./ReportsTab";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
@@ -943,7 +944,7 @@ function Chat({
   );
 }
 
-type Tab = "chat" | "metrics" | "dashboard";
+type Tab = "chat" | "metrics" | "dashboard" | "reports";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
@@ -994,6 +995,17 @@ export default function App() {
           >
             🚨 Risk Dashboard
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("reports")}
+            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              tab === "reports"
+                ? "border-kumo-accent text-kumo-accent"
+                : "border-transparent text-kumo-inactive hover:text-kumo-default"
+            }`}
+          >
+            📋 Reports
+          </button>
         </div>
 
         {/* Tab content */}
@@ -1012,8 +1024,10 @@ export default function App() {
               />
             ) : tab === "metrics" ? (
               <PatientMetrics />
-            ) : (
+            ) : tab === "dashboard" ? (
               <RiskDashboard onSendToAgent={handleSendToAgent} />
+            ) : (
+              <ReportsTab />
             )}
           </Suspense>
         </div>
