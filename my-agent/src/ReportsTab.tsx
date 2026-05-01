@@ -464,8 +464,23 @@ export function ReportsTab() {
 
   const requestPermission = async () => {
     if (typeof Notification === "undefined") return;
+    if (Notification.permission === "denied") {
+      // Already blocked — can't re-request. Open browser settings.
+      alert(
+        "Notifications are blocked in your browser.\n\n" +
+        "To enable:\n" +
+        "Chrome: Click the 🔒 lock icon in the address bar → Notifications → Allow\n" +
+        "Firefox: Click the 🔒 shield icon → Permissions → Allow Notifications"
+      );
+      return;
+    }
     const perm = await Notification.requestPermission();
     setNotifPerm(perm);
+    if (perm === "granted") {
+      new Notification("✅ Staff notifications enabled", {
+        body: "You will be alerted when critical patients are detected."
+      });
+    }
   };
 
   const fireBrowserNotif = useCallback((name: string, score: number, factors: string[]) => {
@@ -599,15 +614,24 @@ export function ReportsTab() {
 
         {/* Notification permission */}
         {notifPerm !== "granted" && (
-          <div className="p-3 border-t border-kumo-line">
+          <div className="p-3 border-t border-kumo-line space-y-1">
             <button
               type="button"
               onClick={requestPermission}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 hover:bg-amber-100 transition-colors dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300"
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-colors ${
+                notifPerm === "denied"
+                  ? "bg-red-50 border-red-200 text-red-800 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300"
+                  : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300"
+              }`}
             >
               <BellIcon size={14} />
-              Enable staff notifications
+              {notifPerm === "denied" ? "Notifications blocked — click for help" : "Enable staff notifications"}
             </button>
+            {notifPerm === "denied" && (
+              <p className="text-[10px] text-kumo-inactive px-1">
+                Click the 🔒 lock in the address bar → Notifications → Allow
+              </p>
+            )}
           </div>
         )}
       </div>
