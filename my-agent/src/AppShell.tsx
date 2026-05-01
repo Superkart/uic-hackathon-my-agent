@@ -391,7 +391,7 @@ function AuditTrail() {
       }}
     >
       <div className="p-6">
-        <div className="folio mb-1">§ IV — Decision Ledger</div>
+        <div className="folio mb-1">§ V — Decision Ledger</div>
         <h3 className="display-title text-[26px] mt-2">
           The Audit{" "}
           <span
