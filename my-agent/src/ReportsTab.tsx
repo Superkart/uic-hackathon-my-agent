@@ -647,20 +647,6 @@ export function ReportsTab() {
             {loading ? "Generating..." : "Refresh"}
           </Button>
 
-          {/* Download buttons */}
-          {report && (
-            <div className="flex gap-2">
-              <Button variant="secondary" size="sm" icon={<FileTextIcon size={14} />}
-                onClick={() => downloadFile(reportToText(report), report.textFilename, "text/plain")}>TXT</Button>
-              <Button variant="secondary" size="sm" icon={<FileCsvIcon size={14} />}
-                onClick={() => downloadFile(toCSV(report.rawRows), report.csvFilename, "text/csv")}>CSV</Button>
-              <Button variant="secondary" size="sm" icon={<FileJsonIcon size={14} />}
-                onClick={() => downloadFile(JSON.stringify(report.rawRows, null, 2), report.jsonFilename, "application/json")}>JSON</Button>
-              <Button variant="primary" size="sm" icon={<DownloadSimpleIcon size={14} />}
-                onClick={() => downloadFile(reportToText(report), report.textFilename, "text/plain")}>Download</Button>
-            </div>
-          )}
-
           {/* Notification bell */}
           <div className="ml-auto relative">
             <button
@@ -763,7 +749,17 @@ export function ReportsTab() {
                     <p className="text-sm font-semibold text-kumo-default">{report.title}</p>
                     <p className="text-xs text-kumo-inactive">Generated {report.generatedAt} · {report.rawRows.length} records</p>
                   </div>
-                  <Badge variant="secondary">{report.rawRows.length} rows</Badge>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary">{report.rawRows.length} rows</Badge>
+                    <Button variant="secondary" size="sm" icon={<FileTextIcon size={14} />}
+                      onClick={() => downloadFile(reportToText(report), report.textFilename, "text/plain")}>TXT</Button>
+                    <Button variant="secondary" size="sm" icon={<FileCsvIcon size={14} />}
+                      onClick={() => downloadFile(toCSV(report.rawRows), report.csvFilename, "text/csv")}>CSV</Button>
+                    <Button variant="secondary" size="sm" icon={<FileJsonIcon size={14} />}
+                      onClick={() => downloadFile(JSON.stringify(report.rawRows, null, 2), report.jsonFilename, "application/json")}>JSON</Button>
+                    <Button variant="primary" size="sm" icon={<DownloadSimpleIcon size={14} />}
+                      onClick={() => downloadFile(reportToText(report), report.textFilename, "text/plain")}>Download</Button>
+                  </div>
                 </div>
               </Surface>
 
