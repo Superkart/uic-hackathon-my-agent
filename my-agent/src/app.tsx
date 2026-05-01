@@ -113,25 +113,39 @@ function OutreachApprovalCard({
       <Surface className="max-w-[90%] w-full px-4 py-4 rounded-xl ring-2 ring-kumo-warning space-y-3">
         <div className="flex items-center gap-2">
           <PaperPlaneRightIcon size={16} className="text-kumo-warning" />
-          <Text size="sm" bold>Review Outreach Draft</Text>
+          <Text size="sm" bold>
+            Review Outreach Draft
+          </Text>
           <Badge variant="primary">{input.patientName}</Badge>
         </div>
         <div>
-          <Text size="xs" variant="secondary">Reason for outreach</Text>
+          <Text size="xs" variant="secondary">
+            Reason for outreach
+          </Text>
           <p className="text-sm text-kumo-default mt-0.5">{input.reason}</p>
         </div>
         <div className="border border-kumo-line rounded-lg divide-y divide-kumo-line overflow-hidden">
           <div className="px-3 py-2 bg-kumo-control">
-            <Text size="xs" variant="secondary">Subject</Text>
-            <p className="text-sm font-medium text-kumo-default mt-0.5">{input.subject}</p>
+            <Text size="xs" variant="secondary">
+              Subject
+            </Text>
+            <p className="text-sm font-medium text-kumo-default mt-0.5">
+              {input.subject}
+            </p>
           </div>
           <div className="px-3 py-2 bg-kumo-base">
-            <Text size="xs" variant="secondary">Message</Text>
-            <p className="text-sm text-kumo-default whitespace-pre-wrap mt-0.5">{input.body}</p>
+            <Text size="xs" variant="secondary">
+              Message
+            </Text>
+            <p className="text-sm text-kumo-default whitespace-pre-wrap mt-0.5">
+              {input.body}
+            </p>
           </div>
         </div>
         <div>
-          <Text size="xs" variant="secondary">Coordinator note (optional — your local context)</Text>
+          <Text size="xs" variant="secondary">
+            Coordinator note (optional — your local context)
+          </Text>
           <textarea
             ref={noteRef}
             rows={2}
@@ -140,15 +154,26 @@ function OutreachApprovalCard({
           />
         </div>
         <div className="flex gap-2 pt-1">
-          <Button variant="primary" size="sm" icon={<CheckCircleIcon size={14} />}
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<CheckCircleIcon size={14} />}
             onClick={() => {
               if (!approvalId) return;
               addToolApprovalResponse({ id: approvalId, approved: true });
-            }}>
+            }}
+          >
             Approve &amp; Send
           </Button>
-          <Button variant="secondary" size="sm" icon={<XCircleIcon size={14} />}
-            onClick={() => approvalId && addToolApprovalResponse({ id: approvalId, approved: false })}>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<XCircleIcon size={14} />}
+            onClick={() =>
+              approvalId &&
+              addToolApprovalResponse({ id: approvalId, approved: false })
+            }
+          >
             Reject
           </Button>
         </div>
@@ -200,7 +225,12 @@ function ToolPartView({
 
     // Custom card for outreach drafts
     if (toolName === "sendOutreach") {
-      const input = part.input as { patientName: string; reason: string; subject: string; body: string };
+      const input = part.input as {
+        patientName: string;
+        reason: string;
+        subject: string;
+        body: string;
+      };
       return (
         <OutreachApprovalCard
           input={input}
@@ -425,7 +455,10 @@ function Chat({
   // Auto-fire a query sent from the Risk Dashboard
   useEffect(() => {
     if (!pendingQuery || !connected || isStreaming) return;
-    sendMessage({ role: "user", parts: [{ type: "text", text: pendingQuery }] });
+    sendMessage({
+      role: "user",
+      parts: [{ type: "text", text: pendingQuery }]
+    });
     onQueryConsumed?.();
   }, [pendingQuery, connected, isStreaming, sendMessage, onQueryConsumed]);
 
@@ -1022,7 +1055,9 @@ type Tab = "chat" | "metrics" | "dashboard" | "reports";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
-  const [pendingAgentQuery, setPendingAgentQuery] = useState<string | null>(null);
+  const [pendingAgentQuery, setPendingAgentQuery] = useState<string | null>(
+    null
+  );
 
   const handleSendToAgent = useCallback((name: string, id: string) => {
     setPendingAgentQuery(
@@ -1059,9 +1094,7 @@ export default function App() {
                 borderBottomColor:
                   tab === id ? "var(--color-primary)" : "transparent",
                 color:
-                  tab === id
-                    ? "var(--color-text)"
-                    : "var(--color-text-muted)"
+                  tab === id ? "var(--color-text)" : "var(--color-text-muted)"
               }}
             >
               <span

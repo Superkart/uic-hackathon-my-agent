@@ -88,8 +88,7 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
 
 export function usePatient(): PatientCtxValue {
   const ctx = useContext(PatientCtx);
-  if (!ctx)
-    throw new Error("usePatient must be used inside <PatientProvider>");
+  if (!ctx) throw new Error("usePatient must be used inside <PatientProvider>");
   return ctx;
 }
 

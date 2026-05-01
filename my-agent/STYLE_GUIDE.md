@@ -12,18 +12,18 @@ The system is opinionated and bold — it is not a generic "AI app." Pages shoul
 
 The single saturated accent. Used for active states, severity (critical / high), the masthead "Detector" word, the chat user bubble, the active tab underline, the timeline marker on the latest decision, the "Send" button, and the §III risk-pill `--danger` and `--critical` variants.
 
-| Token | Hex | Usage |
-|---|---|---|
-| `--color-oxblood-50` | `#fdf3f3` | Tinted danger surface (light mode) |
-| `--color-oxblood-100` | `#fadcdc` | Light pill backgrounds |
-| `--color-oxblood-200` | `#f0adad` | Hover tint |
-| `--color-oxblood-300` | `#d97676` | Dark-mode primary text accent |
-| `--color-oxblood-400` | `#a83333` | — |
+| Token                 | Hex       | Usage                                                            |
+| --------------------- | --------- | ---------------------------------------------------------------- |
+| `--color-oxblood-50`  | `#fdf3f3` | Tinted danger surface (light mode)                               |
+| `--color-oxblood-100` | `#fadcdc` | Light pill backgrounds                                           |
+| `--color-oxblood-200` | `#f0adad` | Hover tint                                                       |
+| `--color-oxblood-300` | `#d97676` | Dark-mode primary text accent                                    |
+| `--color-oxblood-400` | `#a83333` | —                                                                |
 | `--color-oxblood-500` | `#5c0e0e` | **Primary action color** (buttons, accents, the "Detector" word) |
-| `--color-oxblood-600` | `#3a0808` | Hover state for primary buttons |
-| `--color-oxblood-700` | `#2a0606` | — |
-| `--color-oxblood-800` | `#1c0303` | — |
-| `--color-oxblood-900` | `#0d0202` | Deep tint backgrounds |
+| `--color-oxblood-600` | `#3a0808` | Hover state for primary buttons                                  |
+| `--color-oxblood-700` | `#2a0606` | —                                                                |
+| `--color-oxblood-800` | `#1c0303` | —                                                                |
+| `--color-oxblood-900` | `#0d0202` | Deep tint backgrounds                                            |
 
 **Rule:** never use a second saturated color. Severity colors below (amber, ochre, deep-green) live in muted "burnt" registers so oxblood remains the single point of warmth on the page.
 
@@ -31,40 +31,40 @@ The single saturated accent. Used for active states, severity (critical / high),
 
 Warm paper-like tones evoking a clinical document. The chrome (rails, header) is one shade darker than the content well so the layout reads as a frame around a paper.
 
-| CSS Variable | Hex | Usage |
-|---|---|---|
-| `--color-parchment-bg` | `#FAF6EF` | Page background (content well) |
-| `--color-parchment-raised` | `#F5EFE0` | Cards, rails |
-| `--color-parchment-surface` | `#EDE6D3` | Header, tab bar, elevated surfaces |
-| `--color-parchment-hover` | `#E5DBBF` | Hover states |
-| `--color-parchment-border` | `#D6C9A8` | Card / rail borders |
-| `--color-parchment-border-hover` | `#C4B48E` | Interactive hover borders |
+| CSS Variable                     | Hex       | Usage                              |
+| -------------------------------- | --------- | ---------------------------------- |
+| `--color-parchment-bg`           | `#FAF6EF` | Page background (content well)     |
+| `--color-parchment-raised`       | `#F5EFE0` | Cards, rails                       |
+| `--color-parchment-surface`      | `#EDE6D3` | Header, tab bar, elevated surfaces |
+| `--color-parchment-hover`        | `#E5DBBF` | Hover states                       |
+| `--color-parchment-border`       | `#D6C9A8` | Card / rail borders                |
+| `--color-parchment-border-hover` | `#C4B48E` | Interactive hover borders          |
 
 ### Dark Mode — Instrument Navy
 
 Cool navy / charcoal evoking a medical instrument display. Oxblood `oxblood-300` substitutes the saturated `oxblood-500` for primary text accents to maintain contrast.
 
-| Token | Hex | Usage |
-|---|---|---|
-| `--color-instrument-bg` | `#0D0E12` | Page background |
-| `--color-instrument-raised` | `#111827` | Cards, rails |
-| `--color-instrument-surface` | `#1A1D2E` | Header, tab bar, inputs |
-| `--color-instrument-hover` | `#252A3A` | Hover |
-| `--color-instrument-border` | `#1E2433` | Card / rail borders |
-| `--color-instrument-border-hover` | `#2D3548` | Hover borders |
-| `--color-instrument-text` | `#e8ecf2` | Primary text |
-| `--color-instrument-muted` | `#8b95a8` | Secondary text |
+| Token                             | Hex       | Usage                   |
+| --------------------------------- | --------- | ----------------------- |
+| `--color-instrument-bg`           | `#0D0E12` | Page background         |
+| `--color-instrument-raised`       | `#111827` | Cards, rails            |
+| `--color-instrument-surface`      | `#1A1D2E` | Header, tab bar, inputs |
+| `--color-instrument-hover`        | `#252A3A` | Hover                   |
+| `--color-instrument-border`       | `#1E2433` | Card / rail borders     |
+| `--color-instrument-border-hover` | `#2D3548` | Hover borders           |
+| `--color-instrument-text`         | `#e8ecf2` | Primary text            |
+| `--color-instrument-muted`        | `#8b95a8` | Secondary text          |
 
 ### Severity (muted, oxblood-friendly)
 
 Severity colors run desaturated so they don't compete with oxblood.
 
-| Level | Light | Dark | Used in |
-|---|---|---|---|
+| Level      | Light                      | Dark                       | Used in                    |
+| ---------- | -------------------------- | -------------------------- | -------------------------- |
 | `critical` | oxblood-500 saturated fill | oxblood-500 saturated fill | RiskGauge, dashboard pills |
-| `high` | `#b45309` (burnt amber) | `#d97706` | RiskGauge, dashboard pills |
-| `medium` | `#ca8a04` (ochre) | `#eab308` | RiskGauge, dashboard pills |
-| `low` | `#2d5a3a` (forest) | `#6ee7a8` | RiskGauge, dashboard pills |
+| `high`     | `#b45309` (burnt amber)    | `#d97706`                  | RiskGauge, dashboard pills |
+| `medium`   | `#ca8a04` (ochre)          | `#eab308`                  | RiskGauge, dashboard pills |
+| `low`      | `#2d5a3a` (forest)         | `#6ee7a8`                  | RiskGauge, dashboard pills |
 
 ---
 
@@ -74,25 +74,25 @@ The display + body voice is editorial; data is mono with tabular figures so numb
 
 ### Font Families (loaded in `index.html` from Google Fonts)
 
-| CSS variable | Family | Weights | Use |
-|---|---|---|---|
+| CSS variable     | Family                                               | Weights | Use                                                                              |
+| ---------------- | ---------------------------------------------------- | ------- | -------------------------------------------------------------------------------- |
 | `--font-display` | **Fraunces** (variable, with `opsz` and `SOFT` axes) | 420–700 | Top-level titles ("Visit Detector", "The Audit", "Lindsay Brekke" patient names) |
-| `--font-body` | **Newsreader** (variable, italic axis) | 400–700 | Body prose, italic eyebrows, list items |
-| `--font-mono` | **IBM Plex Mono** | 300–600 | Editorial labels, stats numerals, risk scores, dates |
-| `--font-stencil` | **Share Tech Mono** | 400 | Fallback / decorative monospace |
+| `--font-body`    | **Newsreader** (variable, italic axis)               | 400–700 | Body prose, italic eyebrows, list items                                          |
+| `--font-mono`    | **IBM Plex Mono**                                    | 300–600 | Editorial labels, stats numerals, risk scores, dates                             |
+| `--font-stencil` | **Share Tech Mono**                                  | 400     | Fallback / decorative monospace                                                  |
 
 ### Size Scale
 
-| Use | Class / Size | Notes |
-|---|---|---|
-| Masthead title ("Visit Detector") | `display-title` at `text-[42px]` to `text-[48px]` | Fraunces, `opsz` 96, `SOFT` 30 |
-| Patient / section title (rails, dashboards) | `display-title` at `text-[26px]` | |
-| Editorial eyebrow ("the preventable", "(today)") | `display-eyebrow` italic | Fraunces italic with `opsz` 36 |
-| Numerals (stats, scores, IDs) | `numeral` class with `text-2xl` or `text-lg` | IBM Plex Mono, tabular nums |
-| Editorial label (uppercase tracked) | `label-mono` | 10px, 0.22em letter-spacing, IBM Plex Mono |
-| Tighter editorial label | `label-mono-tight` | 9.5px, 0.18em |
-| Folio (page numbers, section numbers) | `folio` | 10px, 0.2em letter-spacing, muted color |
-| Body prose | Newsreader at 14–15px | Default font-family on `<body>` |
+| Use                                              | Class / Size                                      | Notes                                      |
+| ------------------------------------------------ | ------------------------------------------------- | ------------------------------------------ |
+| Masthead title ("Visit Detector")                | `display-title` at `text-[42px]` to `text-[48px]` | Fraunces, `opsz` 96, `SOFT` 30             |
+| Patient / section title (rails, dashboards)      | `display-title` at `text-[26px]`                  |                                            |
+| Editorial eyebrow ("the preventable", "(today)") | `display-eyebrow` italic                          | Fraunces italic with `opsz` 36             |
+| Numerals (stats, scores, IDs)                    | `numeral` class with `text-2xl` or `text-lg`      | IBM Plex Mono, tabular nums                |
+| Editorial label (uppercase tracked)              | `label-mono`                                      | 10px, 0.22em letter-spacing, IBM Plex Mono |
+| Tighter editorial label                          | `label-mono-tight`                                | 9.5px, 0.18em                              |
+| Folio (page numbers, section numbers)            | `folio`                                           | 10px, 0.2em letter-spacing, muted color    |
+| Body prose                                       | Newsreader at 14–15px                             | Default font-family on `<body>`            |
 
 ### Rules
 
@@ -157,12 +157,12 @@ Outlined, uppercase, mono-tracked tags for severity / status. Used in the patien
 <span class="risk-pill risk-pill--critical">Critical</span>
 ```
 
-| Variant | Light | Dark | Use |
-|---|---|---|---|
-| `--ok` | forest text on pale-green | bright-green on dark-green tint | Care plan active, low risk |
-| `--warn` | burnt-amber on cream | amber on dark-amber tint | High utilizer, medium risk |
-| `--danger` | oxblood-500 on oxblood-50 | oxblood-300 on oxblood-tint | No care plan, debt flag, high risk |
-| `--critical` | white on oxblood-500 fill | white on oxblood-500 fill | Critical risk band |
+| Variant      | Light                     | Dark                            | Use                                |
+| ------------ | ------------------------- | ------------------------------- | ---------------------------------- |
+| `--ok`       | forest text on pale-green | bright-green on dark-green tint | Care plan active, low risk         |
+| `--warn`     | burnt-amber on cream      | amber on dark-amber tint        | High utilizer, medium risk         |
+| `--danger`   | oxblood-500 on oxblood-50 | oxblood-300 on oxblood-tint     | No care plan, debt flag, high risk |
+| `--critical` | white on oxblood-500 fill | white on oxblood-500 fill       | Critical risk band                 |
 
 `.pulse-glow` adds a 2.4s ease-in-out glow ring on the latest danger pill.
 
@@ -196,9 +196,9 @@ Globally repainted by the kumo override block (see below) — all `bg-kumo-*` to
 
 Inline SVG capsule, oxblood gradient on the left half, parchment gradient on the right, with a gloss strip and a center seam. Sizes used:
 
-| Location | Size | Rotation |
-|---|---|---|
-| Header masthead | `w-16 h-8` | `-45deg` |
+| Location              | Size       | Rotation |
+| --------------------- | ---------- | -------- |
+| Header masthead       | `w-16 h-8` | `-45deg` |
 | Future favicon (TODO) | inline SVG | `-45deg` |
 
 Each instance uses `useId()` for namespaced gradient IDs to avoid DOM collisions.
@@ -207,12 +207,12 @@ Each instance uses `useId()` for namespaced gradient IDs to avoid DOM collisions
 
 ## Animations
 
-| Class | Effect | Duration |
-|---|---|---|
-| `anim-fade-up` | opacity 0 + translateY(14px) → 0 | 0.55s, cubic-bezier(0.2, 0.7, 0.2, 1) |
-| `anim-fade-down` | opacity 0 + translateY(-8px) → 0 | 0.4s |
-| `anim-scale-in` | opacity 0 + scale(0.96) → 1 | 0.4s |
-| `pulse-glow` | oxblood box-shadow halo pulse | 2.4s loop |
+| Class            | Effect                           | Duration                              |
+| ---------------- | -------------------------------- | ------------------------------------- |
+| `anim-fade-up`   | opacity 0 + translateY(14px) → 0 | 0.55s, cubic-bezier(0.2, 0.7, 0.2, 1) |
+| `anim-fade-down` | opacity 0 + translateY(-8px) → 0 | 0.4s                                  |
+| `anim-scale-in`  | opacity 0 + scale(0.96) → 1      | 0.4s                                  |
+| `pulse-glow`     | oxblood box-shadow halo pulse    | 2.4s loop                             |
 
 Stagger classes (`stagger-1` through `stagger-5`) apply increasing `animation-delay` (0.05s → 0.6s) for cascading section reveal on initial paint. The masthead fades down; the rails and chat fade up; the audit-ledger entries fade in sequentially.
 
@@ -284,14 +284,14 @@ The masthead pill icon + the user chat bubble keep their oxblood-500 fill in dar
 
 ## File Reference
 
-| File | Purpose |
-|---|---|
-| `src/styles.css` | All theme tokens, animations, utility classes, kumo overrides |
-| `src/AppShell.tsx` | 3-column shell; Header, PatientPanel, ChatFrame, AuditTrail |
-| `src/PatientContext.tsx` | Cross-tab patient state + `useActivePatientData()` |
-| `src/components/PillIcon.tsx` | Inline oxblood pill SVG with gloss + seam |
-| `src/app.tsx` | Tab bar, Chat, MCP panel — kumo defaults reskinned via overrides |
-| `src/PatientMetrics.tsx` | §II tab — single-patient metrics + risk gauge |
-| `src/RiskDashboard.tsx` | §III tab — population view, equity + cost panels, expandable rows |
-| `src/server.ts` | Durable Object agent: tools, system prompt, decisions ledger schema |
-| `index.html` | Google Fonts imports (Fraunces, Newsreader, IBM Plex Mono, Share Tech Mono) |
+| File                          | Purpose                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| `src/styles.css`              | All theme tokens, animations, utility classes, kumo overrides               |
+| `src/AppShell.tsx`            | 3-column shell; Header, PatientPanel, ChatFrame, AuditTrail                 |
+| `src/PatientContext.tsx`      | Cross-tab patient state + `useActivePatientData()`                          |
+| `src/components/PillIcon.tsx` | Inline oxblood pill SVG with gloss + seam                                   |
+| `src/app.tsx`                 | Tab bar, Chat, MCP panel — kumo defaults reskinned via overrides            |
+| `src/PatientMetrics.tsx`      | §II tab — single-patient metrics + risk gauge                               |
+| `src/RiskDashboard.tsx`       | §III tab — population view, equity + cost panels, expandable rows           |
+| `src/server.ts`               | Durable Object agent: tools, system prompt, decisions ledger schema         |
+| `index.html`                  | Google Fonts imports (Fraunces, Newsreader, IBM Plex Mono, Share Tech Mono) |

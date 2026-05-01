@@ -104,7 +104,13 @@ function computeRisk(data: PatientMetricsData): RiskResult {
   const maxScore = 14;
   const pct = score / maxScore;
   const level =
-    pct >= 0.7 ? "critical" : pct >= 0.5 ? "high" : pct >= 0.3 ? "medium" : "low";
+    pct >= 0.7
+      ? "critical"
+      : pct >= 0.5
+        ? "high"
+        : pct >= 0.3
+          ? "medium"
+          : "low";
 
   return { score, maxScore, level, factors };
 }
@@ -155,7 +161,9 @@ function MetricCard({
           {label}
         </Text>
       </div>
-      <span className={`text-lg font-bold ${highlight ? "text-kumo-danger" : "text-kumo-default"}`}>
+      <span
+        className={`text-lg font-bold ${highlight ? "text-kumo-danger" : "text-kumo-default"}`}
+      >
         {value}
       </span>
       {sub && (
@@ -317,8 +325,9 @@ export function PatientMetrics() {
       const sdoh: SDOHFlags = {
         housingInsecurity: sdohRows.some(
           (r) =>
-            r.DESCRIPTION.toLowerCase().includes("worried about losing your housing") &&
-            r.VALUE === "Yes"
+            r.DESCRIPTION.toLowerCase().includes(
+              "worried about losing your housing"
+            ) && r.VALUE === "Yes"
         ),
         transportBarrier: sdohRows.some(
           (r) =>
@@ -333,8 +342,9 @@ export function PatientMetrics() {
         ),
         safetyConcern: sdohRows.some(
           (r) =>
-            r.DESCRIPTION.toLowerCase().includes("physically and emotionally safe") &&
-            r.VALUE === "No"
+            r.DESCRIPTION.toLowerCase().includes(
+              "physically and emotionally safe"
+            ) && r.VALUE === "No"
         )
       };
 
@@ -500,7 +510,9 @@ export function PatientMetrics() {
                 />
                 <MetricCard
                   label="Care Plan"
-                  value={metricsData.summary.has_active_careplan ? "Active" : "None"}
+                  value={
+                    metricsData.summary.has_active_careplan ? "Active" : "None"
+                  }
                   sub={
                     metricsData.summary.has_active_careplan
                       ? "Enrolled"
@@ -520,7 +532,9 @@ export function PatientMetrics() {
                   value={`$${metricsData.summary.ed_inpatient_total_cost.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                   sub="High-acuity spend"
                   icon={<CurrencyDollarIcon size={14} />}
-                  highlight={metricsData.summary.ed_inpatient_total_cost > 50000}
+                  highlight={
+                    metricsData.summary.ed_inpatient_total_cost > 50000
+                  }
                 />
                 <MetricCard
                   label="Outstanding Debt"
@@ -575,7 +589,9 @@ export function PatientMetrics() {
           {!selectedId && !loadingPatients && (
             <div className="flex flex-col items-center justify-center py-16 text-kumo-inactive gap-3">
               <UserIcon size={40} />
-              <Text variant="secondary">Select a patient to view risk metrics</Text>
+              <Text variant="secondary">
+                Select a patient to view risk metrics
+              </Text>
               <Text size="xs" variant="secondary">
                 Patients are sorted by ED visit count (highest risk first)
               </Text>

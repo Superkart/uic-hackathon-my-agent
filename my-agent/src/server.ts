@@ -356,7 +356,9 @@ If the user asks to schedule a reminder unrelated to a patient, use the schedule
           inputSchema: z.object({
             sql: z
               .string()
-              .describe("A valid SQL SELECT statement. Always include a LIMIT clause.")
+              .describe(
+                "A valid SQL SELECT statement. Always include a LIMIT clause."
+              )
           }),
           execute: async ({ sql }) => {
             const res = await fetch(
@@ -379,7 +381,9 @@ If the user asks to schedule a reminder unrelated to a patient, use the schedule
             "Returns score (0-14), risk level (low/medium/high/critical), and the factors that drove the score. " +
             "Use this when the user asks about a specific patient's risk.",
           inputSchema: z.object({
-            patientId: z.string().describe("The patient UUID from patient_summary.id")
+            patientId: z
+              .string()
+              .describe("The patient UUID from patient_summary.id")
           }),
           execute: async ({ patientId }) => {
             const DB =
@@ -390,15 +394,25 @@ If the user asks to schedule a reminder unrelated to a patient, use the schedule
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ sql })
               });
-              return ((await r.json()) as { results: Record<string, unknown>[] })
-                .results ?? [];
+              return (
+                ((await r.json()) as { results: Record<string, unknown>[] })
+                  .results ?? []
+              );
             };
 
             const [summary, debtRows, sdohRows, medRows] = await Promise.all([
-              q(`SELECT * FROM patient_summary WHERE id = '${patientId}' LIMIT 1`),
-              q(`SELECT ROUND(SUM(OUTSTANDING), 2) AS total_debt FROM claims_transactions WHERE PATIENTID = '${patientId}' LIMIT 1`),
-              q(`SELECT DESCRIPTION, VALUE FROM observations WHERE PATIENT = '${patientId}' AND DESCRIPTION LIKE '%PRAPARE%' LIMIT 30`),
-              q(`SELECT COUNT(*) AS med_count FROM medications WHERE PATIENT = '${patientId}' AND STOP IS NULL LIMIT 1`)
+              q(
+                `SELECT * FROM patient_summary WHERE id = '${patientId}' LIMIT 1`
+              ),
+              q(
+                `SELECT ROUND(SUM(OUTSTANDING), 2) AS total_debt FROM claims_transactions WHERE PATIENTID = '${patientId}' LIMIT 1`
+              ),
+              q(
+                `SELECT DESCRIPTION, VALUE FROM observations WHERE PATIENT = '${patientId}' AND DESCRIPTION LIKE '%PRAPARE%' LIMIT 30`
+              ),
+              q(
+                `SELECT COUNT(*) AS med_count FROM medications WHERE PATIENT = '${patientId}' AND STOP IS NULL LIMIT 1`
+              )
             ]);
 
             const s = summary[0];
@@ -528,8 +542,10 @@ If the user asks to schedule a reminder unrelated to a patient, use the schedule
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ sql })
               });
-              return ((await r.json()) as { results: Record<string, unknown>[] })
-                .results ?? [];
+              return (
+                ((await r.json()) as { results: Record<string, unknown>[] })
+                  .results ?? []
+              );
             };
 
             const [summaries, meds, debts, sdoh] = await Promise.all([
@@ -615,9 +631,7 @@ If the user asks to schedule a reminder unrelated to a patient, use the schedule
             });
 
             const filtered = (
-              level === "all"
-                ? scored
-                : scored.filter((p) => p.level === level)
+              level === "all" ? scored : scored.filter((p) => p.level === level)
             )
               .sort((a, b) => b.score - a.score)
               .slice(0, limit);
@@ -643,10 +657,23 @@ If the user asks to schedule a reminder unrelated to a patient, use the schedule
             "Use this after identifying a patient who needs intervention.",
           inputSchema: z.object({
             patientName: z.string().describe("Full patient name"),
-            reason: z.string().describe("Brief clinical justification for outreach"),
-            subject: z.string().describe("Subject line of the outreach message"),
-            body: z.string().describe("Full outreach message body for the coordinator to review and approve"),
-            coordinatorNote: z.string().optional().describe("Optional note added by the coordinator before approving")
+            reason: z
+              .string()
+              .describe("Brief clinical justification for outreach"),
+            subject: z
+              .string()
+              .describe("Subject line of the outreach message"),
+            body: z
+              .string()
+              .describe(
+                "Full outreach message body for the coordinator to review and approve"
+              ),
+            coordinatorNote: z
+              .string()
+              .optional()
+              .describe(
+                "Optional note added by the coordinator before approving"
+              )
           }),
           needsApproval: async () => true,
           execute: async ({ patientName, reason, body, coordinatorNote }) => {

@@ -8,10 +8,7 @@ import {
 import { useAgent } from "agents/react";
 import App from "./app";
 import PillIcon from "./components/PillIcon";
-import {
-  PatientProvider,
-  useActivePatientData
-} from "./PatientContext";
+import { PatientProvider, useActivePatientData } from "./PatientContext";
 import type { ChatAgent, Decision } from "./server";
 
 // ─────────────────────────────────────────────────────────────────
@@ -28,10 +25,7 @@ function useDecisions(): Decision[] {
     onMessage: useCallback((message: MessageEvent) => {
       try {
         const data = JSON.parse(String(message.data));
-        if (
-          data.type === "decision-recorded" ||
-          data.type === "task-created"
-        ) {
+        if (data.type === "decision-recorded" || data.type === "task-created") {
           refreshRef.current();
         }
       } catch {
@@ -57,7 +51,6 @@ function useDecisions(): Decision[] {
 
   return decisions;
 }
-
 
 // ─────────────────────────────────────────────────────────────────
 // Small components
@@ -413,10 +406,7 @@ function AuditCollapsedSpine({ onExpand }: { onExpand: () => void }) {
         className="flex-1 mt-6 flex items-center justify-center"
         style={{ writingMode: "vertical-rl" }}
       >
-        <div
-          className="label-mono"
-          style={{ transform: "rotate(180deg)" }}
-        >
+        <div className="label-mono" style={{ transform: "rotate(180deg)" }}>
           § V — Decision Ledger
         </div>
       </div>
@@ -494,14 +484,17 @@ function AuditTrail({ onCollapse }: { onCollapse: () => void }) {
                 color: "var(--color-text-muted)"
               }}
             >
-              Ask the agent for at-risk patients, draft an outreach message,
-              and approve it in chat. Each approval lands here.
+              Ask the agent for at-risk patients, draft an outreach message, and
+              approve it in chat. Each approval lands here.
             </p>
             <p
               className="mt-3 text-xs italic"
               style={{ color: "var(--color-text-muted)" }}
             >
-              Try: <em>"Find the top 3 patients at risk of a preventable ED visit."</em>
+              Try:{" "}
+              <em>
+                "Find the top 3 patients at risk of a preventable ED visit."
+              </em>
             </p>
           </div>
         </div>
