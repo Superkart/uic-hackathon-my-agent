@@ -444,33 +444,14 @@ function AuditTrail() {
   );
 }
 
-// Wraps the chat in an editorial frame with an "issue header" feel
+// Wraps the tabbed App in the editorial frame. The App's tab bar IS the
+// section navigation, so we don't add another header here.
 function ChatFrame({ children }: { children: React.ReactNode }) {
   return (
     <main
       className="flex-1 min-w-0 flex flex-col anim-fade-up stagger-1 relative z-0"
       style={{ background: "var(--color-bg)" }}
     >
-      <div
-        className="px-8 py-3 flex items-baseline justify-between gap-4"
-        style={{ borderBottom: "1px solid var(--color-border)" }}
-      >
-        <div className="flex items-baseline gap-3">
-          <span className="folio">§ Investigation</span>
-          <span
-            className="display-eyebrow"
-            style={{ color: "var(--color-text)" }}
-          >
-            a conversation with the agent
-          </span>
-        </div>
-        <span
-          className="label-mono"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          claude · workers ai · live d1
-        </span>
-      </div>
       <div className="flex-1 min-h-0">{children}</div>
     </main>
   );

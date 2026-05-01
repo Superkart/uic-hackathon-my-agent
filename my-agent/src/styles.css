@@ -534,3 +534,131 @@ main [class*="rounded-2xl"][class*="rounded-br-md"] {
 main [class*="rounded-2xl"][class*="rounded-bl-md"] {
   border-radius: 0.5rem 0.5rem 0.5rem 0.125rem !important;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   DASHBOARD KUMO OVERRIDES — covers the additional tokens used by
+   PatientMetrics + RiskDashboard so they pick up parchment + oxblood.
+   ───────────────────────────────────────────────────────────────── */
+
+main .bg-kumo-control {
+  background: var(--color-bg-surface) !important;
+}
+
+/* Severity surfaces — danger (oxblood), success, warn */
+main .bg-kumo-danger {
+  background: var(--color-oxblood-500) !important;
+  color: #faf6ef !important;
+}
+main .text-kumo-danger {
+  color: var(--color-oxblood-500) !important;
+}
+[data-mode="dark"] main .text-kumo-danger {
+  color: var(--color-oxblood-300) !important;
+}
+main .border-kumo-danger {
+  border-color: var(--color-oxblood-500) !important;
+}
+main .ring-kumo-danger {
+  --tw-ring-color: var(--color-oxblood-500) !important;
+}
+main .bg-kumo-danger\/10 {
+  background: var(--color-oxblood-50) !important;
+}
+[data-mode="dark"] main .bg-kumo-danger\/10 {
+  background: rgba(92, 14, 14, 0.22) !important;
+}
+
+main .text-kumo-success {
+  color: #2d5a3a !important;
+}
+[data-mode="dark"] main .text-kumo-success {
+  color: #6ee7a8 !important;
+}
+main .bg-kumo-success {
+  background: #2d5a3a !important;
+}
+
+main .text-kumo-inactive {
+  color: var(--color-text-muted) !important;
+}
+main .text-kumo-default {
+  color: var(--color-text) !important;
+}
+
+/* Focus rings */
+main .focus\:ring-kumo-accent:focus,
+main .focus\:ring-1.focus\:ring-kumo-accent:focus {
+  --tw-ring-color: var(--color-primary) !important;
+}
+
+/* Tab bar accent */
+main .border-kumo-accent {
+  border-color: var(--color-primary) !important;
+}
+main .text-kumo-accent {
+  color: var(--color-primary) !important;
+}
+
+/* Severity helpers (Tailwind ad-hoc colors used in RiskGauge / RiskDashboard) */
+main .bg-orange-500 {
+  background: #b45309 !important; /* burnt amber, oxblood-friendly */
+}
+[data-mode="dark"] main .bg-orange-500 {
+  background: #d97706 !important;
+}
+main .text-orange-500 {
+  color: #b45309 !important;
+}
+[data-mode="dark"] main .text-orange-500 {
+  color: #d97706 !important;
+}
+main .bg-yellow-500 {
+  background: #ca8a04 !important;
+}
+[data-mode="dark"] main .bg-yellow-500 {
+  background: #eab308 !important;
+}
+main .text-yellow-500 {
+  color: #a16207 !important;
+}
+[data-mode="dark"] main .text-yellow-500 {
+  color: #eab308 !important;
+}
+
+/* Risk-pill critical variant — saturated oxblood for the worst tier */
+.risk-pill--critical {
+  color: #faf6ef;
+  background: var(--color-oxblood-500);
+  border: 1px solid var(--color-oxblood-600);
+}
+[data-mode="dark"] .risk-pill--critical {
+  color: #faf6ef;
+  background: var(--color-oxblood-500);
+  border-color: var(--color-oxblood-300);
+}
+
+/* Cards inside the dashboards — soften corners, parchment surface */
+main [class*="rounded-xl"][class*="ring"][class*="ring-kumo-line"] {
+  background: var(--color-bg-raised) !important;
+  border-radius: 0.5rem !important;
+  --tw-ring-color: var(--color-border) !important;
+}
+
+/* Numbers in risk gauges + metric cards — tabular nums, mono feel */
+main .text-2xl.font-bold,
+main .text-lg.font-bold {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Patient identity title in PatientMetrics — Fraunces */
+main h1,
+main h2,
+main h3,
+main [class*="text-lg"][class*="font-semibold"] {
+  font-family: var(--font-display);
+  font-weight: 480;
+  letter-spacing: -0.005em;
+}
