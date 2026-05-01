@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 import App from "./app";
 import PillIcon from "./components/PillIcon";
 
@@ -64,15 +65,15 @@ function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      aria-label="Toggle theme"
-      className="btn-lift label-mono px-3 py-2 rounded-full border"
+      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+      className="btn-lift inline-flex items-center justify-center rounded-full border w-9 h-9 shadow-sm"
       style={{
         borderColor: "var(--color-border)",
         background: "var(--color-bg-raised)",
         color: "var(--color-text-muted)"
       }}
     >
-      {dark ? "Light" : "Dark"}
+      {dark ? <SunIcon size={16} /> : <MoonIcon size={16} />}
     </button>
   );
 }
@@ -92,45 +93,52 @@ function Header() {
         borderBottom: "1px solid var(--color-border)"
       }}
     >
-      <div className="px-8 pt-5 pb-4">
-        <div className="flex items-baseline justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <PillIcon className="w-12 h-6" rotate />
-            <span className="display-eyebrow text-base text-[color:var(--color-text-muted)]">
-              the preventable
-            </span>
-          </div>
-          <div className="folio">UIC · INFORMS · MAY 1, 2026</div>
-        </div>
-
-        <div className="mt-3 flex items-end justify-between gap-8">
-          <div>
-            <h1 className="display-title text-[44px] sm:text-[56px] leading-none">
-              Visit{" "}
-              <span style={{ color: "var(--color-primary)" }}>Detector</span>
-            </h1>
-            <div className="mt-3 masthead-lockup">
-              <span className="label-mono">Vol. I</span>
-              <span className="masthead-rule" />
-              <span className="label-mono">Care Coordinator Console</span>
-              <span className="masthead-rule" />
-              <span className="label-mono">{today}</span>
+      <div className="px-8 py-4">
+        <div className="flex items-end justify-between gap-8">
+          {/* Left: lockup */}
+          <div className="flex items-end gap-4">
+            <PillIcon className="w-16 h-8 mb-1.5" rotate />
+            <div>
+              <div className="display-eyebrow text-[15px] -mb-0.5 text-[color:var(--color-text-muted)]">
+                the preventable
+              </div>
+              <h1 className="display-title text-[42px] sm:text-[48px] leading-[0.95]">
+                Visit{" "}
+                <span style={{ color: "var(--color-primary)" }}>Detector</span>
+              </h1>
             </div>
           </div>
-          <div className="flex items-center gap-3 pb-1">
-            <div className="text-right hidden sm:block">
-              <div className="label-mono-tight text-[color:var(--color-text-muted)]">
-                On call
-              </div>
+
+          {/* Right: meta + theme */}
+          <div className="flex items-center gap-5 pb-1">
+            <div className="text-right">
+              <div className="folio">UIC · INFORMS · MAY 1, 2026</div>
               <div
-                className="font-medium"
-                style={{ fontFamily: "var(--font-body)" }}
+                className="text-sm mt-0.5"
+                style={{
+                  fontFamily: "var(--font-body)",
+                  color: "var(--color-text)"
+                }}
               >
-                Sarah Chen, RN
+                <span className="italic text-[color:var(--color-text-muted)]">
+                  on call ·{" "}
+                </span>
+                <span className="font-medium">Sarah Chen, RN</span>
               </div>
             </div>
             <ThemeToggle />
           </div>
+        </div>
+
+        {/* Masthead lockup row — full-width editorial rule */}
+        <div className="mt-3 masthead-lockup">
+          <span className="label-mono">Vol. I</span>
+          <span className="masthead-rule" />
+          <span className="label-mono">Care Coordinator Console</span>
+          <span className="masthead-rule" />
+          <span className="label-mono">{today}</span>
+          <span className="masthead-rule" />
+          <span className="label-mono">No. 001</span>
         </div>
       </div>
     </header>

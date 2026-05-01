@@ -421,3 +421,116 @@ body::before {
   color: var(--color-text-muted);
   text-transform: uppercase;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   KUMO CHAT RESKIN — overrides scoped to <main> only, so the agent
+   chat picks up the parchment / oxblood palette instead of kumo's
+   black-pill defaults.
+   ───────────────────────────────────────────────────────────────── */
+
+/* Hide kumo's noisy default chat toolbar (Agent Starter / AI Chat /
+   Connected / theme switch / MCP / Clear). Our own "§ Investigation"
+   header replaces it. */
+main .bg-kumo-elevated > header.bg-kumo-base {
+  display: none;
+}
+
+/* The kumo chat container has h-screen — clamp it to its parent so the
+   rails and the chat all end at the same baseline (no color seam). */
+main .bg-kumo-elevated.h-screen {
+  height: 100% !important;
+}
+
+/* Repaint kumo surfaces in our parchment palette */
+main .bg-kumo-elevated {
+  background: var(--color-bg) !important;
+}
+main .border-kumo-line {
+  border-color: var(--color-border) !important;
+}
+
+/* Send button — kumo brand → oxblood */
+main button.bg-kumo-brand,
+main button[aria-label="Send message"] {
+  background: var(--color-oxblood-500) !important;
+  color: #faf6ef !important;
+}
+main button.bg-kumo-brand:hover,
+main button[aria-label="Send message"]:hover {
+  background: var(--color-oxblood-600) !important;
+}
+main button.hover\\:bg-kumo-brand-hover:hover,
+main button.focus\\:bg-kumo-brand-hover:focus {
+  background: var(--color-oxblood-600) !important;
+}
+
+/* User bubble (kumo-contrast) → oxblood */
+main .bg-kumo-contrast {
+  background: var(--color-oxblood-500) !important;
+  border: 1px solid var(--color-oxblood-600) !important;
+}
+[data-mode="dark"] main .bg-kumo-contrast {
+  background: var(--color-oxblood-500) !important;
+  border-color: var(--color-oxblood-400) !important;
+}
+main .text-kumo-inverse {
+  color: #faf6ef !important;
+}
+
+/* Agent bubble + tinted backgrounds → parchment-raised */
+main .bg-kumo-tint,
+main .bg-kumo-fill {
+  background: var(--color-bg-raised) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+}
+[data-mode="dark"] main .bg-kumo-tint,
+[data-mode="dark"] main .bg-kumo-fill {
+  background: var(--color-bg-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Buttons inside chat — keep them quiet */
+main .bg-kumo-base {
+  background: var(--color-bg-surface) !important;
+  border-color: var(--color-border) !important;
+}
+[data-mode="dark"] main .bg-kumo-base {
+  background: var(--color-bg-surface) !important;
+}
+
+main .ring-kumo-hairline {
+  --tw-ring-color: var(--color-border) !important;
+}
+
+/* Body text inside chat */
+main .text-kumo-default {
+  color: var(--color-text) !important;
+}
+main .text-kumo-subtle,
+main .text-kumo-badge-neutral-subtle {
+  color: var(--color-text-muted) !important;
+}
+
+/* Chat input — wrap it in parchment */
+main textarea,
+main input[type="text"],
+main [role="textbox"] {
+  background: var(--color-bg-raised) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+  font-family: var(--font-body) !important;
+}
+main textarea:focus,
+main input[type="text"]:focus {
+  border-color: var(--color-primary) !important;
+  outline-color: var(--color-primary) !important;
+}
+
+/* Make chat bubbles rounder/squarer to match editorial language */
+main [class*="rounded-2xl"][class*="rounded-br-md"] {
+  border-radius: 0.5rem 0.5rem 0.125rem 0.5rem !important;
+}
+main [class*="rounded-2xl"][class*="rounded-bl-md"] {
+  border-radius: 0.5rem 0.5rem 0.5rem 0.125rem !important;
+}
