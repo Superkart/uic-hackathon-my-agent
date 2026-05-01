@@ -138,6 +138,22 @@ export class ChatAgent extends AIChatAgent<Env> {
     return Array.from(rows);
   }
 
+  @callable()
+  async approvePatientOutreach(
+    patientId: string,
+    patientName: string,
+    action: string,
+    coordinatorNote?: string
+  ): Promise<{ success: boolean; decisionId: string }> {
+    const id = `d_${Date.now()}`;
+    this.sql`
+      INSERT INTO decisions (id, patient_id, patient_name, action, draft_message, coordinator_note)
+      VALUES (${id}, ${patientId}, ${patientName}, ${action}, ${null}, ${coordinatorNote ?? null})
+    `;
+    this.broadcast(JSON.stringify({ type: "decision-recorded", id }));
+    return { success: true, decisionId: id };
+  }
+
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
     const mcpTools = this.mcp.getAITools();
     const workersai = createWorkersAI({ binding: this.env.AI });
