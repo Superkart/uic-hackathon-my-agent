@@ -1001,52 +1001,50 @@ export default function App() {
   return (
     <Toasty>
       <div className="flex flex-col h-screen">
-        {/* Tab bar */}
-        <div className="flex border-b border-kumo-line bg-kumo-base shrink-0">
-          <button
-            type="button"
-            onClick={() => setTab("chat")}
-            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-              tab === "chat"
-                ? "border-kumo-accent text-kumo-accent"
-                : "border-transparent text-kumo-inactive hover:text-kumo-default"
-            }`}
-          >
-            💬 Agent Chat
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("metrics")}
-            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-              tab === "metrics"
-                ? "border-kumo-accent text-kumo-accent"
-                : "border-transparent text-kumo-inactive hover:text-kumo-default"
-            }`}
-          >
-            📊 Patient Metrics
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("dashboard")}
-            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-              tab === "dashboard"
-                ? "border-kumo-accent text-kumo-accent"
-                : "border-transparent text-kumo-inactive hover:text-kumo-default"
-            }`}
-          >
-            🚨 Risk Dashboard
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("reports")}
-            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-              tab === "reports"
-                ? "border-kumo-accent text-kumo-accent"
-                : "border-transparent text-kumo-inactive hover:text-kumo-default"
-            }`}
-          >
-            📋 Reports
-          </button>
+        {/* Tab bar — editorial */}
+        <div
+          className="flex shrink-0"
+          style={{
+            background: "var(--color-bg-surface)",
+            borderBottom: "1px solid var(--color-border)"
+          }}
+        >
+          {(
+            [
+              ["chat", "Investigation"],
+              ["metrics", "Patient Metrics"],
+              ["dashboard", "Risk Dashboard"],
+              ["reports", "Reports"]
+            ] as const
+          ).map(([id, label], i) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className="px-6 py-3.5 label-mono border-b-2 transition-colors"
+              style={{
+                borderBottomColor:
+                  tab === id ? "var(--color-primary)" : "transparent",
+                color:
+                  tab === id
+                    ? "var(--color-text)"
+                    : "var(--color-text-muted)"
+              }}
+            >
+              <span
+                className="numeral mr-2"
+                style={{
+                  color:
+                    tab === id
+                      ? "var(--color-primary)"
+                      : "var(--color-text-muted)"
+                }}
+              >
+                §{["I", "II", "III", "IV"][i]}
+              </span>
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Tab content */}

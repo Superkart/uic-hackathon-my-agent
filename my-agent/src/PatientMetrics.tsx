@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Badge, Button, Surface, Text } from "@cloudflare/kumo";
+import { usePatient } from "./PatientContext";
 import {
   ArrowClockwiseIcon,
   UserIcon,
@@ -250,11 +251,12 @@ function RiskGauge({ risk }: { risk: RiskResult }) {
 // ── Main component ────────────────────────────────────────────────────
 
 export function PatientMetrics() {
+  const { activePatientId, setActivePatient } = usePatient();
   const [patients, setPatients] = useState<
     { id: string; name: string; edVisits: number }[]
   >([]);
   const [loadingPatients, setLoadingPatients] = useState(true);
-  const [selectedId, setSelectedId] = useState<string>("");
+  const selectedId = activePatientId ?? "";
   const [metricsData, setMetricsData] = useState<PatientMetricsData | null>(
     null
   );
@@ -345,10 +347,16 @@ export function PatientMetrics() {
   }, []);
 
   const handleSelect = (id: string) => {
-    setSelectedId(id);
-    if (id) fetchMetrics(id);
-    else setMetricsData(null);
+    setActivePatient(id);
+    if (!id) setMetricsData(null);
   };
+
+  // Auto-fetch when activePatientId changes (from any source — picker,
+  // dashboard click, or recordDecision broadcast).
+  useEffect(() => {
+    if (activePatientId) fetchMetrics(activePatientId);
+    else setMetricsData(null);
+  }, [activePatientId, fetchMetrics]);
 
   const risk = metricsData ? computeRisk(metricsData) : null;
 

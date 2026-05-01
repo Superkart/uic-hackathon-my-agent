@@ -4,10 +4,661 @@
 @source "../node_modules/streamdown/dist/*.js";
 @source "../node_modules/@streamdown/code/dist/*.js";
 
+/* ─────────────────────────────────────────────────────────────────
+   THEME — oxblood + parchment / instrument-navy.
+   Adapted from the DocDefend+ style guide; primary swapped from
+   British Racing Green to oxblood. Editorial typography from the
+   IDS594 final presentation (Fraunces + Newsreader + IBM Plex Mono).
+   ───────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Oxblood scale — primary action color */
+  --color-oxblood-50: #fdf3f3;
+  --color-oxblood-100: #fadcdc;
+  --color-oxblood-200: #f0adad;
+  --color-oxblood-300: #d97676;
+  --color-oxblood-400: #a83333;
+  --color-oxblood-500: #5c0e0e;
+  --color-oxblood-600: #3a0808;
+  --color-oxblood-700: #2a0606;
+  --color-oxblood-800: #1c0303;
+  --color-oxblood-900: #0d0202;
+
+  /* Parchment — light mode surfaces */
+  --color-parchment-bg: #faf6ef;
+  --color-parchment-raised: #f5efe0;
+  --color-parchment-surface: #ede6d3;
+  --color-parchment-hover: #e5dbbf;
+  --color-parchment-border: #d6c9a8;
+  --color-parchment-border-hover: #c4b48e;
+
+  /* Instrument — dark mode (navy / charcoal) */
+  --color-instrument-bg: #0d0e12;
+  --color-instrument-raised: #111827;
+  --color-instrument-surface: #1a1d2e;
+  --color-instrument-hover: #252a3a;
+  --color-instrument-border: #1e2433;
+  --color-instrument-border-hover: #2d3548;
+  --color-instrument-text: #e8ecf2;
+  --color-instrument-muted: #8b95a8;
+
+  /* Type stack — bold, editorial */
+  --font-display: "Fraunces", "Newsreader", Georgia, serif;
+  --font-body: "Newsreader", Georgia, serif;
+  --font-mono: "IBM Plex Mono", "Share Tech Mono", "Courier New", monospace;
+  --font-stencil: "Share Tech Mono", "Courier New", monospace;
+}
+
+/* CSS custom properties, available outside @theme for inline use */
+:root {
+  --color-bg: var(--color-parchment-bg);
+  --color-bg-raised: var(--color-parchment-raised);
+  --color-bg-surface: var(--color-parchment-surface);
+  --color-bg-hover: var(--color-parchment-hover);
+  --color-border: var(--color-parchment-border);
+  --color-border-hover: var(--color-parchment-border-hover);
+  --color-text: #1a1109;
+  --color-text-muted: #6b5a44;
+  --color-primary: var(--color-oxblood-500);
+  --color-primary-hover: var(--color-oxblood-600);
+  --color-grain: rgba(92, 14, 14, 0.025);
+}
+
+[data-mode="dark"] {
+  --color-bg: var(--color-instrument-bg);
+  --color-bg-raised: var(--color-instrument-raised);
+  --color-bg-surface: var(--color-instrument-surface);
+  --color-bg-hover: var(--color-instrument-hover);
+  --color-border: var(--color-instrument-border);
+  --color-border-hover: var(--color-instrument-border-hover);
+  --color-text: var(--color-instrument-text);
+  --color-text-muted: var(--color-instrument-muted);
+  --color-primary: #d97676;
+  --color-primary-hover: #f0adad;
+  --color-grain: rgba(217, 118, 118, 0.04);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BASELINE
+   ───────────────────────────────────────────────────────────────── */
+
 html,
 body,
 #root {
   width: 100%;
   height: 100%;
   margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-feature-settings: "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Parchment grain texture overlay — subtle, decorative */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(92, 14, 14, 0.04),
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 80% 70%,
+      rgba(214, 201, 168, 0.15),
+      transparent 50%
+    );
+  opacity: 0.6;
+  z-index: 0;
+}
+
+[data-mode="dark"] body::before {
+  background-image:
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(217, 118, 118, 0.06),
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 80% 70%,
+      rgba(45, 53, 72, 0.4),
+      transparent 50%
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ANIMATIONS — staggered editorial reveal
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(92, 14, 14, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(92, 14, 14, 0);
+  }
+}
+
+@keyframes traceDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.anim-fade-up {
+  animation: fadeInUp 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.anim-fade-down {
+  animation: fadeInDown 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.anim-scale-in {
+  animation: scaleIn 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.stagger-1 {
+  animation-delay: 0.05s;
+}
+.stagger-2 {
+  animation-delay: 0.18s;
+}
+.stagger-3 {
+  animation-delay: 0.32s;
+}
+.stagger-4 {
+  animation-delay: 0.46s;
+}
+.stagger-5 {
+  animation-delay: 0.6s;
+}
+
+.pulse-glow {
+  animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   COMPONENT UTILITIES
+   ───────────────────────────────────────────────────────────────── */
+
+.shadow-card {
+  box-shadow:
+    0 1px 0 rgba(92, 14, 14, 0.04),
+    0 4px 8px -2px rgba(70, 30, 10, 0.08),
+    0 16px 32px -8px rgba(70, 30, 10, 0.12);
+}
+
+[data-mode="dark"] .shadow-card {
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.5),
+    0 4px 12px -2px rgba(0, 0, 0, 0.5),
+    0 24px 48px -12px rgba(0, 0, 0, 0.6);
+}
+
+.card-hover {
+  transition:
+    transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 200ms ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+}
+
+.btn-lift {
+  transition: transform 150ms ease;
+}
+.btn-lift:hover {
+  transform: translateY(-1px);
+}
+.btn-lift:active {
+  transform: translateY(0);
+}
+
+/* Editorial label — uppercase mono with wide tracking, used everywhere */
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.label-mono-tight {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.numeral {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Display title — Fraunces with optical sizing tuned for headlines */
+.display-title {
+  font-family: var(--font-display);
+  font-weight: 480;
+  font-variation-settings:
+    "opsz" 96,
+    "SOFT" 30;
+  letter-spacing: -0.015em;
+  line-height: 1.04;
+}
+
+.display-eyebrow {
+  font-family: var(--font-display);
+  font-weight: 420;
+  font-variation-settings:
+    "opsz" 36,
+    "SOFT" 30;
+  font-style: italic;
+  letter-spacing: 0;
+}
+
+/* Audit timeline — vertical hairline with markers */
+.timeline-rail {
+  position: relative;
+}
+.timeline-rail::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--color-border) 12%,
+    var(--color-border) 88%,
+    transparent
+  );
+}
+
+.timeline-marker {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  background: var(--color-bg-raised);
+  border: 1.5px solid var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-bg);
+}
+
+.timeline-marker--latest {
+  background: var(--color-primary);
+  box-shadow:
+    0 0 0 3px var(--color-bg),
+    0 0 0 6px rgba(92, 14, 14, 0.18);
+}
+
+[data-mode="dark"] .timeline-marker--latest {
+  box-shadow:
+    0 0 0 3px var(--color-bg),
+    0 0 0 6px rgba(217, 118, 118, 0.22);
+}
+
+/* Risk badge — clinical pill, editorial weight */
+.risk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+}
+
+.risk-pill--danger {
+  color: var(--color-oxblood-500);
+  background: var(--color-oxblood-50);
+}
+.risk-pill--warn {
+  color: #8a4a08;
+  background: #fbeacd;
+}
+.risk-pill--ok {
+  color: #2d5a3a;
+  background: #e2f0e3;
+}
+
+[data-mode="dark"] .risk-pill--danger {
+  color: #f0adad;
+  background: rgba(92, 14, 14, 0.25);
+}
+[data-mode="dark"] .risk-pill--warn {
+  color: #fbbf24;
+  background: rgba(120, 75, 8, 0.25);
+}
+[data-mode="dark"] .risk-pill--ok {
+  color: #6ee7a8;
+  background: rgba(20, 60, 35, 0.35);
+}
+
+/* EKG-style hairline divider used in section breaks */
+.rule-ekg {
+  border: 0;
+  height: 1px;
+  background-image: linear-gradient(
+    to right,
+    transparent 0,
+    var(--color-border) 8%,
+    var(--color-border) 92%,
+    transparent
+  );
+}
+
+/* The cuvette — masthead lockup */
+.masthead-lockup {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+.masthead-rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    var(--color-border) 0,
+    transparent 100%
+  );
+}
+
+/* Folio number — small editorial flourish */
+.folio {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   KUMO CHAT RESKIN — overrides scoped to <main> only, so the agent
+   chat picks up the parchment / oxblood palette instead of kumo's
+   black-pill defaults.
+   ───────────────────────────────────────────────────────────────── */
+
+/* Hide kumo's noisy default chat toolbar (Agent Starter / AI Chat /
+   Connected / theme switch / MCP / Clear). Our own "§ Investigation"
+   header replaces it. */
+main .bg-kumo-elevated > header.bg-kumo-base {
+  display: none;
+}
+
+/* The kumo chat container has h-screen — clamp it to its parent so the
+   rails and the chat all end at the same baseline (no color seam). */
+main .bg-kumo-elevated.h-screen {
+  height: 100% !important;
+}
+
+/* Repaint kumo surfaces in our parchment palette */
+main .bg-kumo-elevated {
+  background: var(--color-bg) !important;
+}
+main .border-kumo-line {
+  border-color: var(--color-border) !important;
+}
+
+/* Send button — kumo brand → oxblood */
+main button.bg-kumo-brand,
+main button[aria-label="Send message"] {
+  background: var(--color-oxblood-500) !important;
+  color: #faf6ef !important;
+}
+main button.bg-kumo-brand:hover,
+main button[aria-label="Send message"]:hover {
+  background: var(--color-oxblood-600) !important;
+}
+main button.hover\\:bg-kumo-brand-hover:hover,
+main button.focus\\:bg-kumo-brand-hover:focus {
+  background: var(--color-oxblood-600) !important;
+}
+
+/* User bubble (kumo-contrast) → oxblood */
+main .bg-kumo-contrast {
+  background: var(--color-oxblood-500) !important;
+  border: 1px solid var(--color-oxblood-600) !important;
+}
+[data-mode="dark"] main .bg-kumo-contrast {
+  background: var(--color-oxblood-500) !important;
+  border-color: var(--color-oxblood-400) !important;
+}
+main .text-kumo-inverse {
+  color: #faf6ef !important;
+}
+
+/* Agent bubble + tinted backgrounds → parchment-raised */
+main .bg-kumo-tint,
+main .bg-kumo-fill {
+  background: var(--color-bg-raised) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+}
+[data-mode="dark"] main .bg-kumo-tint,
+[data-mode="dark"] main .bg-kumo-fill {
+  background: var(--color-bg-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Buttons inside chat — keep them quiet */
+main .bg-kumo-base {
+  background: var(--color-bg-surface) !important;
+  border-color: var(--color-border) !important;
+}
+[data-mode="dark"] main .bg-kumo-base {
+  background: var(--color-bg-surface) !important;
+}
+
+main .ring-kumo-hairline {
+  --tw-ring-color: var(--color-border) !important;
+}
+
+/* Body text inside chat */
+main .text-kumo-default {
+  color: var(--color-text) !important;
+}
+main .text-kumo-subtle,
+main .text-kumo-badge-neutral-subtle {
+  color: var(--color-text-muted) !important;
+}
+
+/* Chat input — wrap it in parchment */
+main textarea,
+main input[type="text"],
+main [role="textbox"] {
+  background: var(--color-bg-raised) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+  font-family: var(--font-body) !important;
+}
+main textarea:focus,
+main input[type="text"]:focus {
+  border-color: var(--color-primary) !important;
+  outline-color: var(--color-primary) !important;
+}
+
+/* Make chat bubbles rounder/squarer to match editorial language */
+main [class*="rounded-2xl"][class*="rounded-br-md"] {
+  border-radius: 0.5rem 0.5rem 0.125rem 0.5rem !important;
+}
+main [class*="rounded-2xl"][class*="rounded-bl-md"] {
+  border-radius: 0.5rem 0.5rem 0.5rem 0.125rem !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   DASHBOARD KUMO OVERRIDES — covers the additional tokens used by
+   PatientMetrics + RiskDashboard so they pick up parchment + oxblood.
+   ───────────────────────────────────────────────────────────────── */
+
+main .bg-kumo-control {
+  background: var(--color-bg-surface) !important;
+}
+
+/* Severity surfaces — danger (oxblood), success, warn */
+main .bg-kumo-danger {
+  background: var(--color-oxblood-500) !important;
+  color: #faf6ef !important;
+}
+main .text-kumo-danger {
+  color: var(--color-oxblood-500) !important;
+}
+[data-mode="dark"] main .text-kumo-danger {
+  color: var(--color-oxblood-300) !important;
+}
+main .border-kumo-danger {
+  border-color: var(--color-oxblood-500) !important;
+}
+main .ring-kumo-danger {
+  --tw-ring-color: var(--color-oxblood-500) !important;
+}
+main .bg-kumo-danger\/10 {
+  background: var(--color-oxblood-50) !important;
+}
+[data-mode="dark"] main .bg-kumo-danger\/10 {
+  background: rgba(92, 14, 14, 0.22) !important;
+}
+
+main .text-kumo-success {
+  color: #2d5a3a !important;
+}
+[data-mode="dark"] main .text-kumo-success {
+  color: #6ee7a8 !important;
+}
+main .bg-kumo-success {
+  background: #2d5a3a !important;
+}
+
+main .text-kumo-inactive {
+  color: var(--color-text-muted) !important;
+}
+main .text-kumo-default {
+  color: var(--color-text) !important;
+}
+
+/* Focus rings */
+main .focus\:ring-kumo-accent:focus,
+main .focus\:ring-1.focus\:ring-kumo-accent:focus {
+  --tw-ring-color: var(--color-primary) !important;
+}
+
+/* Tab bar accent */
+main .border-kumo-accent {
+  border-color: var(--color-primary) !important;
+}
+main .text-kumo-accent {
+  color: var(--color-primary) !important;
+}
+
+/* Severity helpers (Tailwind ad-hoc colors used in RiskGauge / RiskDashboard) */
+main .bg-orange-500 {
+  background: #b45309 !important; /* burnt amber, oxblood-friendly */
+}
+[data-mode="dark"] main .bg-orange-500 {
+  background: #d97706 !important;
+}
+main .text-orange-500 {
+  color: #b45309 !important;
+}
+[data-mode="dark"] main .text-orange-500 {
+  color: #d97706 !important;
+}
+main .bg-yellow-500 {
+  background: #ca8a04 !important;
+}
+[data-mode="dark"] main .bg-yellow-500 {
+  background: #eab308 !important;
+}
+main .text-yellow-500 {
+  color: #a16207 !important;
+}
+[data-mode="dark"] main .text-yellow-500 {
+  color: #eab308 !important;
+}
+
+/* Risk-pill critical variant — saturated oxblood for the worst tier */
+.risk-pill--critical {
+  color: #faf6ef;
+  background: var(--color-oxblood-500);
+  border: 1px solid var(--color-oxblood-600);
+}
+[data-mode="dark"] .risk-pill--critical {
+  color: #faf6ef;
+  background: var(--color-oxblood-500);
+  border-color: var(--color-oxblood-300);
+}
+
+/* Cards inside the dashboards — soften corners, parchment surface */
+main [class*="rounded-xl"][class*="ring"][class*="ring-kumo-line"] {
+  background: var(--color-bg-raised) !important;
+  border-radius: 0.5rem !important;
+  --tw-ring-color: var(--color-border) !important;
+}
+
+/* Numbers in risk gauges + metric cards — tabular nums, mono feel */
+main .text-2xl.font-bold,
+main .text-lg.font-bold {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Patient identity title in PatientMetrics — Fraunces */
+main h1,
+main h2,
+main h3,
+main [class*="text-lg"][class*="font-semibold"] {
+  font-family: var(--font-display);
+  font-weight: 480;
+  letter-spacing: -0.005em;
 }

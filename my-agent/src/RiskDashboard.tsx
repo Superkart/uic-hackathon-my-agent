@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Badge, Button, Surface, Text } from "@cloudflare/kumo";
+import { usePatient } from "./PatientContext";
 import {
   ArrowClockwiseIcon,
   WarningIcon,
@@ -354,6 +355,7 @@ interface RiskDashboardProps {
 }
 
 export function RiskDashboard({ onSendToAgent }: RiskDashboardProps) {
+  const { setActivePatient } = usePatient();
   const [patients, setPatients] = useState<ScoredPatient[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -427,6 +429,7 @@ export function RiskDashboard({ onSendToAgent }: RiskDashboardProps) {
   const toggleExpand = useCallback(async (p: ScoredPatient) => {
     if (expandedId === p.id) { setExpandedId(null); return; }
     setExpandedId(p.id);
+    setActivePatient(p.id);
     if (expandCache.has(p.id)) return;
     setExpandLoading(true);
     try {
@@ -460,7 +463,7 @@ export function RiskDashboard({ onSendToAgent }: RiskDashboardProps) {
     } finally {
       setExpandLoading(false);
     }
-  }, [expandedId, expandCache]);
+  }, [expandedId, expandCache, setActivePatient]);
 
   // Derived stats
   const critical         = patients.filter((p) => p.level === "critical").length;
