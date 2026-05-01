@@ -451,17 +451,22 @@ export function ReportsTab() {
     setSelectedReport(id);
     setReport(null);
     setError(null);
-    if (id === "individual") loadPatients();
+    if (id === "individual") {
+      loadPatients();
+    } else {
+      // Auto-generate immediately for non-individual reports
+      setTimeout(() => generateReport(id), 0);
+    }
   };
 
-  const generate = async () => {
-    if (selectedReport === "individual" && !selectedPatientId) return;
+  const generateReport = async (type: ReportType, patId?: string, patName?: string) => {
+    if (type === "individual" && !patId) return;
     setLoading(true); setError(null); setReport(null);
     try {
       let result: ReportResult;
-      switch (selectedReport) {
+      switch (type) {
         case "emergency":           result = await generateEmergencyReport(); break;
-        case "individual":          result = await generateIndividualReport(selectedPatientId, selectedPatientName); break;
+        case "individual":          result = await generateIndividualReport(patId!, patName!); break;
         case "weekly-summary":      result = await generateWeeklySummaryReport(); break;
         case "high-risk-population":result = await generateHighRiskReport(); break;
         case "no-care-plan":        result = await generateNoCarePlanReport(); break;
@@ -476,6 +481,8 @@ export function ReportsTab() {
       setLoading(false);
     }
   };
+
+  const generate = () => generateReport(selectedReport, selectedPatientId, selectedPatientName);
 
   return (
     <div className="flex h-screen bg-kumo-elevated overflow-hidden">
@@ -521,8 +528,11 @@ export function ReportsTab() {
             <select
               value={selectedPatientId}
               onChange={(e) => {
-                setSelectedPatientId(e.target.value);
-                setSelectedPatientName(patients.find(p=>p.id===e.target.value)?.name ?? "");
+                const pid = e.target.value;
+                const pname = patients.find(p=>p.id===pid)?.name ?? "";
+                setSelectedPatientId(pid);
+                setSelectedPatientName(pname);
+                if (pid) generateReport("individual", pid, pname);
               }}
               className="px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base text-kumo-default text-xs focus:outline-none focus:ring-1 focus:ring-kumo-accent"
             >
@@ -574,19 +584,19 @@ export function ReportsTab() {
           )}
         </div>
 
+        {error && (
+          <div className="px-5 py-2 bg-red-50 border-b border-red-200 dark:bg-red-900/20 dark:border-red-800">
+            <Text size="xs" variant="secondary">Error: {error}</Text>
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-
-          {error && (
-            <Surface className="p-4 rounded-xl ring ring-kumo-danger">
-              <Text size="sm" variant="secondary">{error}</Text>
-            </Surface>
-          )}
 
           {!report && !loading && !error && (
             <div className="flex flex-col items-center justify-center h-full text-kumo-inactive gap-3">
               <ClipboardTextIcon size={40} />
-              <Text variant="secondary">Select a report type and click Generate</Text>
+              <Text variant="secondary">Click a report in the sidebar to generate it</Text>
             </div>
           )}
 
