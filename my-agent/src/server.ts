@@ -34,11 +34,38 @@ function inlineDataUrls(messages: ModelMessage[]): ModelMessage[] {
   });
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Writeback ledger — closed-loop record of coordinator-approved
+// decisions. Persisted in the Durable Object's SQLite storage so
+// every approval becomes a permanent row + a follow-up task with
+// an owner. Read by the right-rail audit trail in AppShell.
+// ─────────────────────────────────────────────────────────────────
+
+export interface Decision {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  action: string;
+  draft_message: string | null;
+  coordinator_note: string | null;
+  approved_at: string;
+}
+
+export interface Task {
+  id: string;
+  decision_id: string;
+  patient_id: string;
+  due_date: string | null;
+  action: string;
+  status: string;
+  created_at: string;
+}
+
 export class ChatAgent extends AIChatAgent<Env> {
   maxPersistedMessages = 100;
 
   onStart() {
-    // Configure OAuth popup behavior for MCP servers that require authentication
+    // OAuth popup handler for MCP servers
     this.mcp.configureOAuthCallback({
       customHandler: (result) => {
         if (result.authSuccess) {
@@ -53,6 +80,30 @@ export class ChatAgent extends AIChatAgent<Env> {
         );
       }
     });
+
+    // Writeback schema — idempotent. Runs on every DO wake.
+    this.sql`
+      CREATE TABLE IF NOT EXISTS decisions (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT NOT NULL,
+        patient_name TEXT NOT NULL,
+        action TEXT NOT NULL,
+        draft_message TEXT,
+        coordinator_note TEXT,
+        approved_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `;
+    this.sql`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        decision_id TEXT NOT NULL,
+        patient_id TEXT NOT NULL,
+        due_date TEXT,
+        action TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `;
   }
 
   @callable()
@@ -65,6 +116,28 @@ export class ChatAgent extends AIChatAgent<Env> {
     await this.removeMcpServer(serverId);
   }
 
+  @callable()
+  async getRecentDecisions(limit = 10): Promise<Decision[]> {
+    const rows = this.sql<Decision>`
+      SELECT id, patient_id, patient_name, action, draft_message,
+             coordinator_note, approved_at
+      FROM decisions
+      ORDER BY approved_at DESC
+      LIMIT ${limit}
+    `;
+    return Array.from(rows);
+  }
+
+  @callable()
+  async getTasksForDecision(decision_id: string): Promise<Task[]> {
+    const rows = this.sql<Task>`
+      SELECT id, decision_id, patient_id, due_date, action, status, created_at
+      FROM tasks WHERE decision_id = ${decision_id}
+      ORDER BY created_at DESC
+    `;
+    return Array.from(rows);
+  }
+
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
     const mcpTools = this.mcp.getAITools();
     const workersai = createWorkersAI({ binding: this.env.AI });
@@ -73,33 +146,67 @@ export class ChatAgent extends AIChatAgent<Env> {
       model: workersai("@cf/moonshotai/kimi-k2.6", {
         sessionAffinity: this.sessionAffinity
       }),
-      system: `You are a healthcare data analyst helping care coordinators at a value-based primary care practice.
+      system: `You are a healthcare data analyst helping a care coordinator at a value-based primary care practice. The coordinator is reading your output. Be concise, clinical, and decision-oriented.
 
-You have access to a database of 117 synthetic patients. Use the queryDatabase tool to investigate patient data.
+# DATA — read-only, via queryDatabase
 
-Start every investigation with:
-SELECT * FROM patient_summary ORDER BY ed_inpatient_total_cost DESC LIMIT 10
+Patient dataset: 117 synthetic patients. Always start with patient_summary.
 
-The patient_summary view columns are:
-id, first, last, age, income, ed_visits, inpatient_visits, total_cost, ed_inpatient_total_cost, chronic_condition_count, has_active_careplan
+patient_summary columns:
+  id, first, last, age, income, ed_visits, inpatient_visits, total_cost,
+  ed_inpatient_total_cost, chronic_condition_count, has_active_careplan
 
 Other tables:
-- encounters: filter by ENCOUNTERCLASS (emergency, inpatient, ambulatory, urgentcare, wellness)
-- conditions: active when STOP IS NULL — includes both clinical and SDOH conditions
-- observations: PRAPARE social screenings (housing, food, transport, stress)
-- claims_transactions: financial data — join on PATIENTID (not PATIENT)
-- medications: active when STOP IS NULL
-- careplans: active when STOP IS NULL
+  encounters     — filter by ENCOUNTERCLASS (emergency, inpatient, ambulatory, urgentcare, wellness)
+  conditions     — active when STOP IS NULL; includes clinical AND SDOH (housing, transport, employment) flags
+  observations   — PRAPARE social screenings
+  medications    — active when STOP IS NULL
+  careplans      — active when STOP IS NULL
+  claims_transactions — join on PATIENTID (NOT PATIENT)
 
-Rules:
-- Never show raw JSON to users — always format results as a table or clear summary
-- Always include a LIMIT clause in SQL queries
-- Synthea patient names have numeric suffixes ("Lindsay928 Brekke496"). When searching by name, use LIKE with LOWER(), not =
-- Before recommending any action, summarize findings and ask the coordinator to confirm
+Synthea names carry numeric suffixes (e.g. "Lindsay928 Brekke496"). Use LIKE with LOWER() when searching by name, not =.
+
+# WORKFLOW — Preventable Visit Detector
+
+When the coordinator asks for at-risk patients, follow this chain:
+
+1. RANK — call queryDatabase to pull top candidates by combined risk:
+     ed_visits DESC, has_active_careplan ASC, chronic_condition_count DESC
+   Top 5 is usually right. Always LIMIT.
+
+2. SCORE — for each top patient, briefly explain WHY: clinical drivers
+   (ED frequency, condition count, no care plan) AND social drivers
+   (run a second queryDatabase against conditions WHERE PATIENT = ? for
+   SDOH flags like Homeless, Unemployed, Lack of access).
+
+3. DRAFT — produce a 2–3 sentence outreach draft for ONE patient at a
+   time. Tone: respectful, action-oriented, naming the specific barrier.
+
+4. RECORD — call recordDecision with the draft. The coordinator sees an
+   approval dialog — they can edit the message or add a coordinator_note
+   (their local knowledge, e.g. "daughter drives Tuesdays") before approving.
+   Do not skip this step. Do not pretend to record without calling the tool.
+
+5. TASK — immediately after recordDecision returns success, call createTask
+   with a sensible due_date (within 7 days) and a one-line imperative
+   action ("Call patient to schedule migraine follow-up"). The coordinator
+   approves this in a second dialog.
+
+6. CONFIRM — when both tools have written, summarize for the coordinator:
+   "Decision logged. Task due {date}. Audit ledger updated."
+
+# RULES
+
+- Never show raw JSON. Format as tables or short prose.
+- Always LIMIT queries.
+- Synthea names use LIKE+LOWER, never =.
+- recordDecision and createTask both pause for human approval — that is
+  the human-in-the-loop. Treat the approval as the coordinator's decision,
+  not yours.
 
 ${getSchedulePrompt({ date: new Date() })}
 
-If the user asks to schedule a task, use the schedule tool.`,
+If the user asks to schedule a reminder unrelated to a patient, use the schedule tool.`,
       // Prune old tool calls to save tokens on long conversations
       messages: pruneMessages({
         messages: inlineDataUrls(await convertToModelMessages(this.messages)),
@@ -108,6 +215,113 @@ If the user asks to schedule a task, use the schedule tool.`,
       tools: {
         // MCP tools from connected servers
         ...mcpTools,
+
+        // ── Writeback (HITL-gated) ────────────────────────────────────
+        // Closed-loop: agent drafts → coordinator approves in a dialog →
+        // tool persists to the DO's SQLite → audit sidebar refreshes.
+
+        recordDecision: tool({
+          description:
+            "Record a coordinator-approved decision for a specific patient. " +
+            "Call AFTER drafting an outreach message. The coordinator will see " +
+            "an approval dialog where they can edit the draft and add a " +
+            "coordinator_note (their local knowledge, e.g. 'daughter drives Tuesdays') " +
+            "before this writes to the audit ledger.",
+          inputSchema: z.object({
+            patient_id: z
+              .string()
+              .describe("The Synthea patient UUID returned from queryDatabase"),
+            patient_name: z
+              .string()
+              .describe(
+                "Full patient name including the Synthea numeric suffixes, e.g. 'Lindsay928 Brekke496'"
+              ),
+            action: z
+              .string()
+              .describe(
+                "Short imperative phrase, e.g. 'Outreach: schedule migraine follow-up'"
+              ),
+            draft_message: z
+              .string()
+              .describe(
+                "The full outreach message draft, 2–3 sentences, addressed to the patient"
+              ),
+            coordinator_note: z
+              .string()
+              .optional()
+              .describe(
+                "Optional coordinator local-knowledge note that contextualizes the decision"
+              )
+          }),
+          needsApproval: async () => true,
+          execute: async ({
+            patient_id,
+            patient_name,
+            action,
+            draft_message,
+            coordinator_note
+          }) => {
+            const id = `d_${Date.now().toString(36)}`;
+            this.sql`
+              INSERT INTO decisions
+                (id, patient_id, patient_name, action, draft_message, coordinator_note)
+              VALUES
+                (${id}, ${patient_id}, ${patient_name}, ${action},
+                 ${draft_message}, ${coordinator_note ?? null})
+            `;
+            this.broadcast(
+              JSON.stringify({
+                type: "decision-recorded",
+                id,
+                patient_name,
+                action
+              })
+            );
+            return { id, patient_name, action, status: "approved" };
+          }
+        }),
+
+        createTask: tool({
+          description:
+            "Create a follow-up task tied to a recorded decision. Call this " +
+            "IMMEDIATELY after recordDecision returns success. The coordinator " +
+            "approves the due date and action in a dialog before the task is created.",
+          inputSchema: z.object({
+            decision_id: z
+              .string()
+              .describe("The id returned by recordDecision (format: d_xxx)"),
+            patient_id: z.string(),
+            due_date: z
+              .string()
+              .describe(
+                "Calendar date in YYYY-MM-DD when the task should be done. Choose within 7 days."
+              ),
+            action: z
+              .string()
+              .describe(
+                "One-line imperative task, e.g. 'Call patient to schedule migraine follow-up'"
+              )
+          }),
+          needsApproval: async () => true,
+          execute: async ({ decision_id, patient_id, due_date, action }) => {
+            const id = `t_${Date.now().toString(36)}`;
+            this.sql`
+              INSERT INTO tasks (id, decision_id, patient_id, due_date, action)
+              VALUES (${id}, ${decision_id}, ${patient_id}, ${due_date}, ${action})
+            `;
+            this.broadcast(
+              JSON.stringify({ type: "task-created", id, decision_id, action })
+            );
+            return {
+              id,
+              decision_id,
+              patient_id,
+              due_date,
+              action,
+              status: "pending"
+            };
+          }
+        }),
 
         // Healthcare data: query the shared D1 patient dataset (read-only)
         queryDatabase: tool({

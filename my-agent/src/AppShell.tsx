@@ -1,36 +1,53 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MoonIcon, SunIcon } from "@phosphor-icons/react";
+import { useAgent } from "agents/react";
 import App from "./app";
 import PillIcon from "./components/PillIcon";
+import type { ChatAgent, Decision } from "./server";
 
 // ─────────────────────────────────────────────────────────────────
-// Mock data — replace with real fetches once the writeback work merges.
-// Shape stays stable; the swap is a one-line change to a hook.
+// Real-time decisions hook — fetches the audit ledger from the DO
+// and refreshes on broadcast events from recordDecision / createTask.
 // ─────────────────────────────────────────────────────────────────
 
-const MOCK_RECENT_DECISIONS = [
-  {
-    id: "d_003",
-    patient_name: "Lindsay928 Brekke496",
-    action: "Outreach: schedule migraine follow-up",
-    approved_at: "2026-05-01T13:42:00Z",
-    coordinator_note: "Tuesday afternoons (daughter drives)"
-  },
-  {
-    id: "d_002",
-    patient_name: "Giovanni385 Paucek755",
-    action: "Outreach: discharge planning + behavioral health referral",
-    approved_at: "2026-05-01T13:18:00Z",
-    coordinator_note: ""
-  },
-  {
-    id: "d_001",
-    patient_name: "Chantelle310 Oberbrunner298",
-    action: "Outreach: pharmacy reconciliation",
-    approved_at: "2026-05-01T13:04:00Z",
-    coordinator_note: "Spanish-preferred coordinator"
-  }
-];
+function useDecisions(): Decision[] {
+  const [decisions, setDecisions] = useState<Decision[]>([]);
+  const refreshRef = useRef<() => void>(() => {});
+
+  const agent = useAgent<ChatAgent>({
+    agent: "ChatAgent",
+    onMessage: useCallback((message: MessageEvent) => {
+      try {
+        const data = JSON.parse(String(message.data));
+        if (
+          data.type === "decision-recorded" ||
+          data.type === "task-created"
+        ) {
+          refreshRef.current();
+        }
+      } catch {
+        // Not our event
+      }
+    }, [])
+  });
+
+  const refresh = useCallback(async () => {
+    try {
+      const rows = await agent.stub.getRecentDecisions(10);
+      setDecisions(rows);
+    } catch (e) {
+      console.warn("getRecentDecisions failed:", e);
+    }
+  }, [agent]);
+
+  refreshRef.current = refresh;
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return decisions;
+}
 
 const MOCK_ACTIVE_PATIENT = {
   name: "Lindsay928 Brekke496",
@@ -293,6 +310,9 @@ function RelativeTime({ iso }: { iso: string }) {
 }
 
 function AuditTrail() {
+  const decisions = useDecisions();
+  const isEmpty = decisions.length === 0;
+
   return (
     <aside
       className="w-[340px] flex-shrink-0 overflow-y-auto anim-fade-up stagger-3 relative z-10"
@@ -318,99 +338,108 @@ function AuditTrail() {
         >
           Every approval becomes a task. Every task has an owner.
         </p>
-      </div>
-
-      <hr className="rule-ekg" />
-
-      <div className="px-6 py-5 timeline-rail">
-        <ol className="space-y-6 ml-6">
-          {MOCK_RECENT_DECISIONS.map((d, i) => (
-            <li
-              key={d.id}
-              className="relative anim-fade-up"
-              style={{ animationDelay: `${0.3 + i * 0.1}s` }}
-            >
-              <span
-                className={
-                  i === 0
-                    ? "timeline-marker timeline-marker--latest"
-                    : "timeline-marker"
-                }
-                style={{ left: "-24px" }}
-              />
-              <div className="flex items-baseline justify-between gap-2">
-                <div
-                  className="numeral text-[10.5px] uppercase tracking-[0.18em]"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  {d.id.replace("_", "-")}
-                </div>
-                <div
-                  className="numeral text-xs"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  <RelativeTime iso={d.approved_at} />
-                </div>
-              </div>
-              <div
-                className="mt-1 text-[15px] font-medium"
-                style={{ fontFamily: "var(--font-body)" }}
-              >
-                {d.patient_name.replace(/\d+/g, "")}
-              </div>
-              <div
-                className="mt-0.5 text-sm leading-snug"
-                style={{
-                  fontFamily: "var(--font-body)",
-                  color: "var(--color-text)"
-                }}
-              >
-                {d.action}
-              </div>
-              {d.coordinator_note && (
-                <blockquote
-                  className="mt-2 pl-3 italic text-sm border-l-2"
-                  style={{
-                    borderColor: "var(--color-primary)",
-                    color: "var(--color-text-muted)",
-                    fontFamily: "var(--font-body)"
-                  }}
-                >
-                  “{d.coordinator_note}”
-                </blockquote>
-              )}
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <hr className="rule-ekg" />
-
-      <div className="p-6">
         <div
-          className="label-mono mb-2"
+          className="mt-3 numeral text-[10.5px] uppercase tracking-[0.18em]"
           style={{ color: "var(--color-text-muted)" }}
         >
-          Awaiting your review
-        </div>
-        <div
-          className="rounded-md p-3 border-dashed border"
-          style={{
-            borderColor: "var(--color-border)",
-            background: "var(--color-bg-surface)"
-          }}
-        >
-          <div className="numeral text-[10.5px] uppercase tracking-[0.18em] text-[color:var(--color-text-muted)]">
-            queue · empty
-          </div>
-          <div
-            className="text-sm mt-1 italic"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            Ask the agent for today's at-risk patients to begin.
-          </div>
+          {decisions.length} decision{decisions.length === 1 ? "" : "s"}
+          {" · "}live ledger
         </div>
       </div>
+
+      <hr className="rule-ekg" />
+
+      {isEmpty ? (
+        <div className="p-6">
+          <div
+            className="rounded-md p-4 border-dashed border"
+            style={{
+              borderColor: "var(--color-border)",
+              background: "var(--color-bg-surface)"
+            }}
+          >
+            <div className="label-mono mb-2">Ledger empty</div>
+            <p
+              className="text-sm leading-relaxed"
+              style={{
+                fontFamily: "var(--font-body)",
+                color: "var(--color-text-muted)"
+              }}
+            >
+              Ask the agent for at-risk patients, draft an outreach message,
+              and approve it in chat. Each approval lands here.
+            </p>
+            <p
+              className="mt-3 text-xs italic"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              Try: <em>"Find the top 3 patients at risk of a preventable ED visit."</em>
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="px-6 py-5 timeline-rail">
+          <ol className="space-y-6 ml-6">
+            {decisions.map((d, i) => (
+              <li
+                key={d.id}
+                className="relative anim-fade-up"
+                style={{ animationDelay: `${0.05 + i * 0.06}s` }}
+              >
+                <span
+                  className={
+                    i === 0
+                      ? "timeline-marker timeline-marker--latest"
+                      : "timeline-marker"
+                  }
+                  style={{ left: "-24px" }}
+                />
+                <div className="flex items-baseline justify-between gap-2">
+                  <div
+                    className="numeral text-[10.5px] uppercase tracking-[0.18em]"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    {d.id.replace("_", "-")}
+                  </div>
+                  <div
+                    className="numeral text-xs"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    <RelativeTime iso={d.approved_at} />
+                  </div>
+                </div>
+                <div
+                  className="mt-1 text-[15px] font-medium"
+                  style={{ fontFamily: "var(--font-body)" }}
+                >
+                  {d.patient_name.replace(/\d+/g, "")}
+                </div>
+                <div
+                  className="mt-0.5 text-sm leading-snug"
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    color: "var(--color-text)"
+                  }}
+                >
+                  {d.action}
+                </div>
+                {d.coordinator_note && (
+                  <blockquote
+                    className="mt-2 pl-3 italic text-sm border-l-2"
+                    style={{
+                      borderColor: "var(--color-primary)",
+                      color: "var(--color-text-muted)",
+                      fontFamily: "var(--font-body)"
+                    }}
+                  >
+                    “{d.coordinator_note}”
+                  </blockquote>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </aside>
   );
 }
