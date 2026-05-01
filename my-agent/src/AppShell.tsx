@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MoonIcon, SunIcon } from "@phosphor-icons/react";
+import {
+  CaretLeftIcon,
+  CaretRightIcon,
+  MoonIcon,
+  SunIcon
+} from "@phosphor-icons/react";
 import { useAgent } from "agents/react";
 import App from "./app";
 import PillIcon from "./components/PillIcon";
@@ -104,16 +109,19 @@ function Header() {
         borderBottom: "1px solid var(--color-border)"
       }}
     >
-      <div className="px-8 py-4">
-        <div className="flex items-end justify-between gap-8">
+      <div className="px-4 py-3 md:px-8 md:py-4">
+        <div className="flex items-end justify-between gap-3 md:gap-8">
           {/* Left: lockup */}
-          <div className="flex items-end gap-4">
-            <PillIcon className="w-16 h-8 mb-1.5" rotate />
-            <div>
-              <div className="display-eyebrow text-[15px] -mb-0.5 text-[color:var(--color-text-muted)]">
+          <div className="flex items-end gap-3 md:gap-4 min-w-0">
+            <PillIcon
+              className="w-10 h-5 md:w-16 md:h-8 mb-1 md:mb-1.5 flex-shrink-0"
+              rotate
+            />
+            <div className="min-w-0">
+              <div className="display-eyebrow text-[13px] md:text-[15px] -mb-0.5 text-[color:var(--color-text-muted)]">
                 the preventable
               </div>
-              <h1 className="display-title text-[42px] sm:text-[48px] leading-[0.95]">
+              <h1 className="display-title text-[28px] sm:text-[36px] md:text-[42px] lg:text-[48px] leading-[0.95]">
                 Visit{" "}
                 <span style={{ color: "var(--color-primary)" }}>Detector</span>
               </h1>
@@ -121,8 +129,8 @@ function Header() {
           </div>
 
           {/* Right: meta + theme */}
-          <div className="flex items-center gap-5 pb-1">
-            <div className="text-right">
+          <div className="flex items-center gap-3 md:gap-5 pb-1 flex-shrink-0">
+            <div className="text-right hidden md:block">
               <div className="folio">UIC · INFORMS · MAY 1, 2026</div>
               <div
                 className="text-sm italic mt-0.5"
@@ -138,8 +146,9 @@ function Header() {
           </div>
         </div>
 
-        {/* Masthead lockup row — full-width editorial rule */}
-        <div className="mt-3 masthead-lockup">
+        {/* Masthead lockup row — desktop only (the right-side meta carries
+            the same info on tablet and the eyebrow does on mobile) */}
+        <div className="mt-3 masthead-lockup hidden lg:flex">
           <span className="label-mono">Vol. I</span>
           <span className="masthead-rule" />
           <span className="label-mono">Care Coordinator Console</span>
@@ -190,7 +199,7 @@ function PatientPanel() {
   if (!p) {
     return (
       <aside
-        className="w-[300px] flex-shrink-0 overflow-y-auto anim-fade-up stagger-2 relative z-10"
+        className="w-[300px] flex-shrink-0 overflow-y-auto anim-fade-up stagger-2 relative z-10 hidden lg:block"
         style={{
           background: "var(--color-bg-raised)",
           borderRight: "1px solid var(--color-border)"
@@ -219,7 +228,7 @@ function PatientPanel() {
 
   return (
     <aside
-      className="w-[300px] flex-shrink-0 overflow-y-auto anim-fade-up stagger-2 relative z-10"
+      className="w-[300px] flex-shrink-0 overflow-y-auto anim-fade-up stagger-2 relative z-10 hidden lg:block"
       style={{
         background: "var(--color-bg-raised)",
         borderRight: "1px solid var(--color-border)"
@@ -378,20 +387,70 @@ function RelativeTime({ iso }: { iso: string }) {
   return <span className="numeral">{time}</span>;
 }
 
-function AuditTrail() {
-  const decisions = useDecisions();
-  const isEmpty = decisions.length === 0;
-
+function AuditCollapsedSpine({ onExpand }: { onExpand: () => void }) {
   return (
     <aside
-      className="w-[340px] flex-shrink-0 overflow-y-auto anim-fade-up stagger-3 relative z-10"
+      className="w-11 flex-shrink-0 anim-fade-up stagger-3 relative z-10 hidden lg:flex flex-col items-center"
       style={{
         background: "var(--color-bg-raised)",
         borderLeft: "1px solid var(--color-border)"
       }}
     >
-      <div className="p-6">
-        <div className="folio mb-1">§ IV — Decision Ledger</div>
+      <button
+        type="button"
+        onClick={onExpand}
+        aria-label="Expand decision ledger"
+        className="btn-lift mt-4 w-9 h-9 rounded-full border flex items-center justify-center"
+        style={{
+          borderColor: "var(--color-border)",
+          background: "var(--color-bg-surface)",
+          color: "var(--color-text-muted)"
+        }}
+      >
+        <CaretLeftIcon size={16} />
+      </button>
+      <div
+        className="flex-1 mt-6 flex items-center justify-center"
+        style={{ writingMode: "vertical-rl" }}
+      >
+        <div
+          className="label-mono"
+          style={{ transform: "rotate(180deg)" }}
+        >
+          § V — Decision Ledger
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function AuditTrail({ onCollapse }: { onCollapse: () => void }) {
+  const decisions = useDecisions();
+  const isEmpty = decisions.length === 0;
+
+  return (
+    <aside
+      className="w-[340px] flex-shrink-0 overflow-y-auto anim-fade-up stagger-3 relative z-10 hidden lg:block"
+      style={{
+        background: "var(--color-bg-raised)",
+        borderLeft: "1px solid var(--color-border)"
+      }}
+    >
+      <div className="p-6 pr-12 relative">
+        <button
+          type="button"
+          onClick={onCollapse}
+          aria-label="Collapse decision ledger"
+          className="btn-lift absolute top-5 right-4 w-7 h-7 rounded-full border flex items-center justify-center"
+          style={{
+            borderColor: "var(--color-border)",
+            background: "var(--color-bg-surface)",
+            color: "var(--color-text-muted)"
+          }}
+        >
+          <CaretRightIcon size={14} />
+        </button>
+        <div className="folio mb-1">§ V — Decision Ledger</div>
         <h3 className="display-title text-[26px] mt-2">
           The Audit{" "}
           <span
@@ -540,6 +599,18 @@ export default function AppShell() {
     }
   }, []);
 
+  // Decision Ledger collapse state — desktop only, persisted to localStorage
+  const [auditCollapsed, setAuditCollapsed] = useState(
+    () => localStorage.getItem("audit-collapsed") === "true"
+  );
+  const toggleAudit = useCallback(() => {
+    setAuditCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("audit-collapsed", String(next));
+      return next;
+    });
+  }, []);
+
   return (
     <PatientProvider>
       <div
@@ -552,7 +623,11 @@ export default function AppShell() {
           <ChatFrame>
             <App />
           </ChatFrame>
-          <AuditTrail />
+          {auditCollapsed ? (
+            <AuditCollapsedSpine onExpand={toggleAudit} />
+          ) : (
+            <AuditTrail onCollapse={toggleAudit} />
+          )}
         </div>
       </div>
     </PatientProvider>

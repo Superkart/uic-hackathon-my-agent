@@ -581,10 +581,10 @@ export function ReportsTab() {
   };
 
   return (
-    <div className="flex h-screen bg-kumo-elevated overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen bg-kumo-elevated overflow-hidden">
 
-      {/* Sidebar */}
-      <div className="w-64 shrink-0 bg-kumo-base border-r border-kumo-line flex flex-col">
+      {/* Sidebar — full width on mobile, fixed left rail on tablet+ */}
+      <div className="w-full md:w-64 shrink-0 bg-kumo-base border-b md:border-b-0 md:border-r border-kumo-line flex flex-col max-h-[45vh] md:max-h-none">
         <div className="p-4 border-b border-kumo-line">
           <div className="flex items-center gap-2">
             <ClipboardTextIcon size={18} className="text-kumo-inactive" />
