@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Badge, Button, Surface, Text } from "@cloudflare/kumo";
 import { usePatient } from "./PatientContext";
+import { useAgent } from "agents/react";
+import type { ChatAgent } from "./server";
 import {
   ArrowClockwiseIcon,
   WarningIcon,
@@ -16,7 +18,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   PillIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ClipboardTextIcon
 } from "@phosphor-icons/react";
 
 // ── DB helper ─────────────────────────────────────────────────────────
@@ -159,12 +162,29 @@ function StatCard({ label, value, sub, icon, danger }: {
 
 // ── Expanded detail panel ─────────────────────────────────────────────
 
-function ExpandedPanel({ detail, loading, patient, onSendToAgent }: {
+function ExpandedPanel({ detail, loading, patient, onSendToAgent, onApproveOutreach }: {
   detail: ExpandedDetail | null;
   loading: boolean;
   patient: ScoredPatient;
   onSendToAgent: (name: string, id: string) => void;
+  onApproveOutreach: (patientId: string, patientName: string, action: string, note?: string) => Promise<void>;
 }) {
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const actionRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleApprove = async () => {
+    const action = actionRef.current?.value.trim();
+    if (!action) return;
+    setSubmitting(true);
+    await onApproveOutreach(patient.id, patient.name, action, noteRef.current?.value.trim() || undefined);
+    setSubmitting(false);
+    setShowForm(false);
+    setDone(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-4 pl-12 text-kumo-inactive">
@@ -259,18 +279,57 @@ function ExpandedPanel({ detail, loading, patient, onSendToAgent }: {
         </div>
       </div>
 
-      {/* Send to Agent CTA */}
-      <div className="flex items-center gap-3 pt-2 border-t border-kumo-line">
-        <Button
-          variant="primary" size="sm"
-          icon={<ChatCircleDotsIcon size={14} />}
-          onClick={() => onSendToAgent(patient.name, patient.id)}
-        >
-          Analyze in Agent Chat
-        </Button>
-        <Text size="xs" variant="secondary">
-          Switches to chat and runs full risk analysis + outreach draft for coordinator approval
-        </Text>
+      {/* Action bar */}
+      <div className="pt-2 border-t border-kumo-line space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="primary" size="sm" icon={<ChatCircleDotsIcon size={14} />}
+            onClick={() => onSendToAgent(patient.name, patient.id)}>
+            Analyze in Agent Chat
+          </Button>
+          {!done ? (
+            <Button variant="secondary" size="sm" icon={<ClipboardTextIcon size={14} />}
+              onClick={() => setShowForm((v) => !v)}>
+              {showForm ? "Cancel" : "Approve Outreach"}
+            </Button>
+          ) : (
+            <span className="flex items-center gap-1 text-xs text-kumo-success">
+              <CheckCircleIcon size={13} /> Logged to Decision Ledger
+            </span>
+          )}
+        </div>
+
+        {showForm && (
+          <div className="rounded-lg border border-kumo-line bg-kumo-control p-3 space-y-2">
+            <Text size="xs" bold>Log outreach decision for {patient.name.replace(/\d+/g, "").trim()}</Text>
+            <div>
+              <Text size="xs" variant="secondary">Action (required)</Text>
+              <input
+                ref={actionRef}
+                type="text"
+                defaultValue={`Schedule outreach call — ${patient.level} risk, ${patient.factors[0] ?? "review needed"}`}
+                className="mt-1 w-full px-3 py-1.5 text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-default focus:outline-none focus:ring-1 focus:ring-kumo-accent"
+              />
+            </div>
+            <div>
+              <Text size="xs" variant="secondary">Coordinator note (optional)</Text>
+              <textarea
+                ref={noteRef}
+                rows={2}
+                placeholder='e.g. "Daughter drives on Tuesdays, call before noon"'
+                className="mt-1 w-full px-3 py-1.5 text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-accent resize-none"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="primary" size="sm" icon={<CheckCircleIcon size={13} />}
+                disabled={submitting} onClick={handleApprove}>
+                {submitting ? "Saving…" : "Approve & Log"}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setShowForm(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -278,7 +337,7 @@ function ExpandedPanel({ detail, loading, patient, onSendToAgent }: {
 
 // ── Patient row ───────────────────────────────────────────────────────
 
-function PatientRow({ p, rank, expanded, expandedDetail, expandLoading, onToggle, onSendToAgent }: {
+function PatientRow({ p, rank, expanded, expandedDetail, expandLoading, onToggle, onSendToAgent, onApproveOutreach }: {
   p: ScoredPatient;
   rank: number;
   expanded: boolean;
@@ -286,6 +345,7 @@ function PatientRow({ p, rank, expanded, expandedDetail, expandLoading, onToggle
   expandLoading: boolean;
   onToggle: () => void;
   onSendToAgent: (name: string, id: string) => void;
+  onApproveOutreach: (patientId: string, patientName: string, action: string, note?: string) => Promise<void>;
 }) {
   const barPct = Math.min((p.score / 14) * 100, 100);
   return (
@@ -332,6 +392,7 @@ function PatientRow({ p, rank, expanded, expandedDetail, expandLoading, onToggle
           loading={expandLoading}
           patient={p}
           onSendToAgent={onSendToAgent}
+          onApproveOutreach={onApproveOutreach}
         />
       )}
     </Surface>
@@ -356,7 +417,17 @@ interface RiskDashboardProps {
 
 export function RiskDashboard({ onSendToAgent }: RiskDashboardProps) {
   const { setActivePatient } = usePatient();
+  const agent = useAgent<ChatAgent>({ agent: "ChatAgent" });
   const [patients, setPatients] = useState<ScoredPatient[]>([]);
+
+  const handleApproveOutreach = useCallback(async (
+    patientId: string,
+    patientName: string,
+    action: string,
+    note?: string
+  ) => {
+    await agent.stub.approvePatientOutreach(patientId, patientName, action, note);
+  }, [agent.stub]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
   const [filterLevel, setFilterLevel] = useState<ScoredPatient["level"] | "all">("all");
@@ -704,6 +775,7 @@ export function RiskDashboard({ onSendToAgent }: RiskDashboardProps) {
                     expandLoading={expandedId === p.id && expandLoading}
                     onToggle={() => toggleExpand(p)}
                     onSendToAgent={onSendToAgent}
+                    onApproveOutreach={handleApproveOutreach}
                   />
                 ))}
               </div>
