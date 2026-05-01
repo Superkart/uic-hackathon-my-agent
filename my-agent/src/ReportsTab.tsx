@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Badge, Button, Surface, Text } from "@cloudflare/kumo";
 import {
   ArrowClockwiseIcon,
@@ -12,7 +12,11 @@ import {
   FileCsvIcon,
   FileJsIcon as FileJsonIcon,
   FileTextIcon,
-  ClipboardTextIcon
+  ClipboardTextIcon,
+  BellRingingIcon,
+  BellIcon,
+  XIcon,
+  CheckCircleIcon
 } from "@phosphor-icons/react";
 
 // ── DB ────────────────────────────────────────────────────────────────
@@ -426,24 +430,127 @@ function reportToText(r: ReportResult): string {
   return lines.join("\n");
 }
 
+// ── Notification types ────────────────────────────────────────────────
+
+interface StaffAlert {
+  id: string;
+  patientName: string;
+  riskScore: number;
+  factors: string[];
+  time: string;
+  acknowledged: boolean;
+}
+
 // ── Main component ────────────────────────────────────────────────────
 
 export function ReportsTab() {
   const [selectedReport, setSelectedReport] = useState<ReportType>("emergency");
-  const [selectedPatientId, setSelectedPatientId]     = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState("");
   const [selectedPatientName, setSelectedPatientName] = useState("");
   const [patients, setPatients] = useState<{id:string;name:string}[]>([]);
   const [loadingPatients, setLoadingPatients] = useState(false);
-  const [report, setReport]   = useState<ReportResult | null>(null);
+  const [report, setReport] = useState<ReportResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load patient list when individual report selected
+  // Notifications
+  const [alerts, setAlerts] = useState<StaffAlert[]>([]);
+  const [showAlerts, setShowAlerts] = useState(false);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(() =>
+    typeof Notification !== "undefined" ? Notification.permission : "denied"
+  );
+
+  const unreadCount = alerts.filter(a => !a.acknowledged).length;
+
+  const requestPermission = async () => {
+    if (typeof Notification === "undefined") return;
+    const perm = await Notification.requestPermission();
+    setNotifPerm(perm);
+  };
+
+  const fireBrowserNotif = useCallback((name: string, score: number, factors: string[]) => {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const n = new Notification(`🚨 Critical Patient: ${name}`, {
+      body: `Risk Score: ${score}/14\n${factors.join(", ")}`,
+      tag: `alert-${name}`
+    });
+    n.onclick = () => window.focus();
+  }, []);
+
+  const pushAlerts = useCallback((patients: {name:string;score:number;factors:string[]}[]) => {
+    const newAlerts: StaffAlert[] = patients.map(p => ({
+      id: `${p.name}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+      patientName: p.name,
+      riskScore: p.score,
+      factors: p.factors,
+      time: new Date().toLocaleTimeString(),
+      acknowledged: false
+    }));
+    setAlerts(prev => [...newAlerts, ...prev].slice(0, 50));
+    setShowAlerts(true);
+    newAlerts.forEach(a => fireBrowserNotif(a.patientName, a.riskScore, a.factors));
+  }, [fireBrowserNotif]);
+
+  const acknowledge = (id: string) =>
+    setAlerts(prev => prev.map(a => a.id === id ? {...a, acknowledged: true} : a));
+  const acknowledgeAll = () =>
+    setAlerts(prev => prev.map(a => ({...a, acknowledged: true})));
+
+  // Use a ref so handleSelectReport always calls latest runGenerate
+  const runGenerateRef = useRef<(type: ReportType, patId?: string, patName?: string) => void>(() => {});
+
+  const runGenerate = useCallback(async (type: ReportType, patId?: string, patName?: string) => {
+    if (type === "individual" && !patId) return;
+    setLoading(true);
+    setError(null);
+    setReport(null);
+    try {
+      let result: ReportResult;
+      switch (type) {
+        case "emergency":            result = await generateEmergencyReport(); break;
+        case "individual":           result = await generateIndividualReport(patId!, patName!); break;
+        case "weekly-summary":       result = await generateWeeklySummaryReport(); break;
+        case "high-risk-population": result = await generateHighRiskReport(); break;
+        case "no-care-plan":         result = await generateNoCarePlanReport(); break;
+        case "cost-analysis":        result = await generateCostReport(); break;
+        case "health-equity":        result = await generateHealthEquityReport(); break;
+        default: throw new Error("Unknown report type");
+      }
+      setReport(result);
+
+      // Auto-alert staff for emergency reports
+      if (type === "emergency" && result.rawRows.length > 0) {
+        const criticalPatients = result.rawRows
+          .filter((r): r is Record<string,unknown> => (r as Record<string,unknown>).RiskLevel === "CRITICAL")
+          .map(r => ({
+            name: String(r.Name ?? ""),
+            score: Number(r.RiskScore ?? 0),
+            factors: String(r.RiskFactors ?? "").split("; ").filter(Boolean)
+          }));
+        if (criticalPatients.length > 0) pushAlerts(criticalPatients);
+      }
+    } catch(e) {
+      setError(e instanceof Error ? e.message : "Failed to generate report");
+    } finally {
+      setLoading(false);
+    }
+  }, [pushAlerts]);
+
+  // Keep ref in sync with latest runGenerate
+  runGenerateRef.current = runGenerate;
+
+  // Auto-generate emergency report on mount
+  useEffect(() => {
+    runGenerateRef.current("emergency");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadPatients = useCallback(async () => {
     if (patients.length > 0) return;
     setLoadingPatients(true);
-    const rows = await dbQuery<{id:string;first:string;last:string;ed_visits:number}>(`SELECT id,first,last,ed_visits FROM patient_summary ORDER BY ed_visits DESC LIMIT 117`);
-    setPatients(rows.map(r=>({id:r.id,name:`${r.first} ${r.last}`})));
+    const rows = await dbQuery<{id:string;first:string;last:string;ed_visits:number}>(
+      `SELECT id,first,last,ed_visits FROM patient_summary ORDER BY ed_visits DESC LIMIT 117`
+    );
+    setPatients(rows.map(r => ({id: r.id, name: `${r.first} ${r.last}`})));
     setLoadingPatients(false);
   }, [patients.length]);
 
@@ -454,35 +561,9 @@ export function ReportsTab() {
     if (id === "individual") {
       loadPatients();
     } else {
-      // Auto-generate immediately for non-individual reports
-      setTimeout(() => generateReport(id), 0);
+      runGenerateRef.current(id);
     }
   };
-
-  const generateReport = async (type: ReportType, patId?: string, patName?: string) => {
-    if (type === "individual" && !patId) return;
-    setLoading(true); setError(null); setReport(null);
-    try {
-      let result: ReportResult;
-      switch (type) {
-        case "emergency":           result = await generateEmergencyReport(); break;
-        case "individual":          result = await generateIndividualReport(patId!, patName!); break;
-        case "weekly-summary":      result = await generateWeeklySummaryReport(); break;
-        case "high-risk-population":result = await generateHighRiskReport(); break;
-        case "no-care-plan":        result = await generateNoCarePlanReport(); break;
-        case "cost-analysis":       result = await generateCostReport(); break;
-        case "health-equity":       result = await generateHealthEquityReport(); break;
-        default: throw new Error("Unknown report type");
-      }
-      setReport(result);
-    } catch(e) {
-      setError(e instanceof Error ? e.message : "Failed to generate report");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generate = () => generateReport(selectedReport, selectedPatientId, selectedPatientName);
 
   return (
     <div className="flex h-screen bg-kumo-elevated overflow-hidden">
@@ -509,12 +590,26 @@ export function ReportsTab() {
               <div className="flex items-center gap-2 mb-1">
                 {r.icon}
                 <span className="text-xs font-medium text-kumo-default">{r.label}</span>
-                {r.badge && <Badge variant={r.badgeVariant ?? "secondary"} >{r.badge}</Badge>}
+                {r.badge && <Badge variant={r.badgeVariant ?? "secondary"}>{r.badge}</Badge>}
               </div>
               <p className="text-xs text-kumo-inactive leading-tight">{r.description}</p>
             </button>
           ))}
         </div>
+
+        {/* Notification permission */}
+        {notifPerm !== "granted" && (
+          <div className="p-3 border-t border-kumo-line">
+            <button
+              type="button"
+              onClick={requestPermission}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 hover:bg-amber-100 transition-colors dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300"
+            >
+              <BellIcon size={14} />
+              Enable staff notifications
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main panel */}
@@ -522,17 +617,19 @@ export function ReportsTab() {
 
         {/* Toolbar */}
         <div className="px-5 py-3 bg-kumo-base border-b border-kumo-line flex items-center gap-3 flex-wrap">
-          <Text size="sm" bold>{REPORTS.find(r=>r.id===selectedReport)?.label}</Text>
+          <span className="text-sm font-semibold text-kumo-default">
+            {REPORTS.find(r => r.id === selectedReport)?.label}
+          </span>
 
           {selectedReport === "individual" && (
             <select
               value={selectedPatientId}
               onChange={(e) => {
                 const pid = e.target.value;
-                const pname = patients.find(p=>p.id===pid)?.name ?? "";
+                const pname = patients.find(p => p.id === pid)?.name ?? "";
                 setSelectedPatientId(pid);
                 setSelectedPatientName(pname);
-                if (pid) generateReport("individual", pid, pname);
+                if (pid) runGenerateRef.current("individual", pid, pname);
               }}
               className="px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base text-kumo-default text-xs focus:outline-none focus:ring-1 focus:ring-kumo-accent"
             >
@@ -544,49 +641,100 @@ export function ReportsTab() {
           <Button
             variant="primary" size="sm"
             icon={loading ? <ArrowClockwiseIcon size={14} className="animate-spin" /> : <ArrowClockwiseIcon size={14} />}
-            onClick={generate}
+            onClick={() => runGenerateRef.current(selectedReport, selectedPatientId, selectedPatientName)}
             disabled={loading || (selectedReport === "individual" && !selectedPatientId)}
           >
-            {loading ? "Generating..." : "Generate Report"}
+            {loading ? "Generating..." : "Refresh"}
           </Button>
 
+          {/* Download buttons */}
           {report && (
-            <div className="flex gap-2 ml-auto">
-              <Button
-                variant="secondary" size="sm"
-                icon={<FileTextIcon size={14} />}
-                onClick={() => downloadFile(reportToText(report), report.textFilename, "text/plain")}
-              >
-                TXT
-              </Button>
-              <Button
-                variant="secondary" size="sm"
-                icon={<FileCsvIcon size={14} />}
-                onClick={() => downloadFile(toCSV(report.rawRows), report.csvFilename, "text/csv")}
-              >
-                CSV
-              </Button>
-              <Button
-                variant="secondary" size="sm"
-                icon={<FileJsonIcon size={14} />}
-                onClick={() => downloadFile(JSON.stringify(report.rawRows, null, 2), report.jsonFilename, "application/json")}
-              >
-                JSON
-              </Button>
-              <Button
-                variant="primary" size="sm"
-                icon={<DownloadSimpleIcon size={14} />}
-                onClick={() => downloadFile(reportToText(report), report.textFilename, "text/plain")}
-              >
-                Download
-              </Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" icon={<FileTextIcon size={14} />}
+                onClick={() => downloadFile(reportToText(report), report.textFilename, "text/plain")}>TXT</Button>
+              <Button variant="secondary" size="sm" icon={<FileCsvIcon size={14} />}
+                onClick={() => downloadFile(toCSV(report.rawRows), report.csvFilename, "text/csv")}>CSV</Button>
+              <Button variant="secondary" size="sm" icon={<FileJsonIcon size={14} />}
+                onClick={() => downloadFile(JSON.stringify(report.rawRows, null, 2), report.jsonFilename, "application/json")}>JSON</Button>
+              <Button variant="primary" size="sm" icon={<DownloadSimpleIcon size={14} />}
+                onClick={() => downloadFile(reportToText(report), report.textFilename, "text/plain")}>Download</Button>
             </div>
           )}
+
+          {/* Notification bell */}
+          <div className="ml-auto relative">
+            <button
+              type="button"
+              onClick={() => setShowAlerts(!showAlerts)}
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-kumo-line bg-kumo-base hover:bg-kumo-control transition-colors text-xs text-kumo-default"
+            >
+              {unreadCount > 0
+                ? <BellRingingIcon size={16} className="text-red-500" />
+                : <BellIcon size={16} className="text-kumo-inactive" />}
+              Staff Alerts
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
+        {/* Alert panel */}
+        {showAlerts && (
+          <div className="border-b border-kumo-line bg-kumo-base max-h-72 overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-2 sticky top-0 bg-kumo-base border-b border-kumo-line">
+              <span className="text-xs font-semibold text-kumo-default flex items-center gap-2">
+                <BellRingingIcon size={14} className="text-red-500" />
+                Staff Alerts — Critical Patients ({alerts.length})
+              </span>
+              <div className="flex gap-2">
+                {unreadCount > 0 && (
+                  <button type="button" onClick={acknowledgeAll}
+                    className="text-xs text-kumo-accent hover:underline">
+                    Acknowledge all
+                  </button>
+                )}
+                <button type="button" onClick={() => setShowAlerts(false)}>
+                  <XIcon size={14} className="text-kumo-inactive" />
+                </button>
+              </div>
+            </div>
+
+            {alerts.length === 0 ? (
+              <p className="px-5 py-3 text-xs text-kumo-inactive">No alerts yet. Run Emergency Flags report to scan for critical patients.</p>
+            ) : (
+              <div className="divide-y divide-kumo-line">
+                {alerts.map(alert => (
+                  <div key={alert.id}
+                    className={`px-5 py-3 flex items-start gap-3 ${alert.acknowledged ? "opacity-50" : "bg-red-50/50 dark:bg-red-900/10"}`}>
+                    <WarningIcon size={16} className="text-red-500 mt-0.5 shrink-0" weight="fill" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-kumo-default">{alert.patientName}</span>
+                        <span className="text-xs text-red-600 font-medium">Risk {alert.riskScore}/14</span>
+                        <span className="text-xs text-kumo-inactive">{alert.time}</span>
+                      </div>
+                      <p className="text-xs text-kumo-inactive mt-0.5 truncate">{alert.factors.join(" · ")}</p>
+                    </div>
+                    {!alert.acknowledged && (
+                      <button type="button" onClick={() => acknowledge(alert.id)}
+                        className="shrink-0 flex items-center gap-1 text-xs text-kumo-accent hover:underline">
+                        <CheckCircleIcon size={14} /> Acknowledge
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {error && (
-          <div className="px-5 py-2 bg-red-50 border-b border-red-200 dark:bg-red-900/20 dark:border-red-800">
-            <Text size="xs" variant="secondary">Error: {error}</Text>
+          <div className="px-5 py-2 bg-red-50 border-b border-red-200 flex items-center gap-2 dark:bg-red-900/20 dark:border-red-800">
+            <WarningIcon size={14} className="text-red-500 shrink-0" />
+            <span className="text-xs text-red-700 dark:text-red-300">{error}</span>
           </div>
         )}
 
@@ -596,7 +744,7 @@ export function ReportsTab() {
           {!report && !loading && !error && (
             <div className="flex flex-col items-center justify-center h-full text-kumo-inactive gap-3">
               <ClipboardTextIcon size={40} />
-              <Text variant="secondary">Click a report in the sidebar to generate it</Text>
+              <Text variant="secondary">Loading report...</Text>
             </div>
           )}
 
@@ -612,8 +760,8 @@ export function ReportsTab() {
               <Surface className="p-4 rounded-xl ring ring-kumo-line">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <Text size="sm" bold>{report.title}</Text>
-                    <Text size="xs" variant="secondary">Generated {report.generatedAt} · {report.rawRows.length} records</Text>
+                    <p className="text-sm font-semibold text-kumo-default">{report.title}</p>
+                    <p className="text-xs text-kumo-inactive">Generated {report.generatedAt} · {report.rawRows.length} records</p>
                   </div>
                   <Badge variant="secondary">{report.rawRows.length} rows</Badge>
                 </div>
@@ -621,7 +769,7 @@ export function ReportsTab() {
 
               {report.sections.map((section, i) => (
                 <Surface key={i} className="p-4 rounded-xl ring ring-kumo-line space-y-2">
-                  <Text size="sm" bold>{section.heading}</Text>
+                  <p className="text-sm font-semibold text-kumo-default">{section.heading}</p>
                   <pre className="text-xs text-kumo-default font-mono whitespace-pre-wrap leading-relaxed bg-kumo-control rounded-lg p-3 overflow-x-auto max-h-80 overflow-y-auto">
                     {section.content}
                   </pre>
