@@ -148,7 +148,7 @@ export class ChatAgent extends AIChatAgent<Env> {
       }),
       system: `You are a healthcare data analyst helping a care coordinator at a value-based primary care practice. The coordinator is reading your output. Be concise, clinical, and decision-oriented.
 
-# DATA — read-only, via queryDatabase
+# DATA — read-only
 
 Patient dataset: 117 synthetic patients. Always start with patient_summary.
 
@@ -163,46 +163,51 @@ Other tables:
   medications    — active when STOP IS NULL
   careplans      — active when STOP IS NULL
   claims_transactions — join on PATIENTID (NOT PATIENT)
+  patients       — INCOME, LAT, LON, RACE, ETHNICITY
 
 Synthea names carry numeric suffixes (e.g. "Lindsay928 Brekke496"). Use LIKE with LOWER() when searching by name, not =.
+
+# TOOLS
+
+- queryDatabase — raw SELECT against the dataset. Use for ad-hoc questions.
+- getPatientRiskScore — same risk score the Patient Metrics UI shows for one patient. Use when asked about a specific patient's risk.
+- getTopRiskPatients — same ranked list the Risk Dashboard UI shows. Use for "who's highest risk" questions.
+- recordDecision (HITL-gated) — log a coordinator-approved outreach decision.
+- createTask (HITL-gated) — schedule the follow-up that pairs with a decision.
+
+# RISK SCORING FORMULA (max 14 pts — same as the UI dashboards)
+
+  ED visits > 5             +3
+  No active care plan       +2
+  Chronic conditions > 10   +2
+  Polypharmacy (≥5 meds)    +1
+  Debt > $10k               +1
+  SDOH flags (housing/transport/food/safety)  +1 each, capped at +2
+
+Levels: critical ≥60%, high ≥43%, medium ≥25%, low <25%.
 
 # WORKFLOW — Preventable Visit Detector
 
 When the coordinator asks for at-risk patients, follow this chain:
 
-1. RANK — call queryDatabase to pull top candidates by combined risk:
-     ed_visits DESC, has_active_careplan ASC, chronic_condition_count DESC
-   Top 5 is usually right. Always LIMIT.
+1. RANK — getTopRiskPatients (or queryDatabase for custom criteria) to pull top candidates.
 
-2. SCORE — for each top patient, briefly explain WHY: clinical drivers
-   (ED frequency, condition count, no care plan) AND social drivers
-   (run a second queryDatabase against conditions WHERE PATIENT = ? for
-   SDOH flags like Homeless, Unemployed, Lack of access).
+2. SCORE — call getPatientRiskScore on the top patient(s) to get the factor breakdown.
 
-3. DRAFT — produce a 2–3 sentence outreach draft for ONE patient at a
-   time. Tone: respectful, action-oriented, naming the specific barrier.
+3. DRAFT — produce a 2–3 sentence outreach draft for ONE patient at a time. Tone: respectful, action-oriented, naming the specific barrier.
 
-4. RECORD — call recordDecision with the draft. The coordinator sees an
-   approval dialog — they can edit the message or add a coordinator_note
-   (their local knowledge, e.g. "daughter drives Tuesdays") before approving.
-   Do not skip this step. Do not pretend to record without calling the tool.
+4. RECORD — call recordDecision with the draft. The coordinator sees an approval dialog — they can edit the message or add a coordinator_note (their local knowledge, e.g. "daughter drives Tuesdays") before approving. Do not skip this step. Do not pretend to record without calling the tool.
 
-5. TASK — immediately after recordDecision returns success, call createTask
-   with a sensible due_date (within 7 days) and a one-line imperative
-   action ("Call patient to schedule migraine follow-up"). The coordinator
-   approves this in a second dialog.
+5. TASK — immediately after recordDecision returns success, call createTask with a sensible due_date (within 7 days) and a one-line imperative action ("Call patient to schedule migraine follow-up"). The coordinator approves this in a second dialog.
 
-6. CONFIRM — when both tools have written, summarize for the coordinator:
-   "Decision logged. Task due {date}. Audit ledger updated."
+6. CONFIRM — when both tools have written, summarize for the coordinator: "Decision logged. Task due {date}. Audit ledger updated."
 
 # RULES
 
 - Never show raw JSON. Format as tables or short prose.
-- Always LIMIT queries.
+- Always LIMIT queries on queryDatabase.
 - Synthea names use LIKE+LOWER, never =.
-- recordDecision and createTask both pause for human approval — that is
-  the human-in-the-loop. Treat the approval as the coordinator's decision,
-  not yours.
+- recordDecision and createTask both pause for human approval — that is the human-in-the-loop. Treat the approval as the coordinator's decision, not yours.
 
 ${getSchedulePrompt({ date: new Date() })}
 
@@ -347,6 +352,270 @@ If the user asks to schedule a reminder unrelated to a patient, use the schedule
               }
             );
             return (await res.json()) as object;
+          }
+        }),
+
+        // Compute the UI risk score for a single patient — same formula as the
+        // Patient Metrics dashboard tab.
+        getPatientRiskScore: tool({
+          description:
+            "Compute the same risk score shown in the Patient Metrics UI tab for a given patient. " +
+            "Returns score (0-14), risk level (low/medium/high/critical), and the factors that drove the score. " +
+            "Use this when the user asks about a specific patient's risk.",
+          inputSchema: z.object({
+            patientId: z.string().describe("The patient UUID from patient_summary.id")
+          }),
+          execute: async ({ patientId }) => {
+            const DB =
+              "https://uic-hackathon-data.christian-7f4.workers.dev/query";
+            const q = async (sql: string) => {
+              const r = await fetch(DB, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sql })
+              });
+              return ((await r.json()) as { results: Record<string, unknown>[] })
+                .results ?? [];
+            };
+
+            const [summary, debtRows, sdohRows, medRows] = await Promise.all([
+              q(`SELECT * FROM patient_summary WHERE id = '${patientId}' LIMIT 1`),
+              q(`SELECT ROUND(SUM(OUTSTANDING), 2) AS total_debt FROM claims_transactions WHERE PATIENTID = '${patientId}' LIMIT 1`),
+              q(`SELECT DESCRIPTION, VALUE FROM observations WHERE PATIENT = '${patientId}' AND DESCRIPTION LIKE '%PRAPARE%' LIMIT 30`),
+              q(`SELECT COUNT(*) AS med_count FROM medications WHERE PATIENT = '${patientId}' AND STOP IS NULL LIMIT 1`)
+            ]);
+
+            const s = summary[0];
+            if (!s) return { error: "Patient not found" };
+
+            const debt = (debtRows[0]?.total_debt as number) ?? 0;
+            const medCount = (medRows[0]?.med_count as number) ?? 0;
+            const sdoh = sdohRows as { DESCRIPTION: string; VALUE: string }[];
+
+            const housingInsecurity = sdoh.some(
+              (r) =>
+                r.DESCRIPTION.toLowerCase().includes(
+                  "worried about losing your housing"
+                ) && r.VALUE === "Yes"
+            );
+            const transportBarrier = sdoh.some(
+              (r) =>
+                r.DESCRIPTION.toLowerCase().includes("transportation") &&
+                r.VALUE === "Yes"
+            );
+            const foodInsecurity = sdoh.some(
+              (r) =>
+                (r.DESCRIPTION.toLowerCase().includes("food") ||
+                  r.DESCRIPTION.toLowerCase().includes("hungry")) &&
+                r.VALUE === "Yes"
+            );
+            const safetyConcern = sdoh.some(
+              (r) =>
+                r.DESCRIPTION.toLowerCase().includes(
+                  "physically and emotionally safe"
+                ) && r.VALUE === "No"
+            );
+            const sdohCount = [
+              housingInsecurity,
+              transportBarrier,
+              foodInsecurity,
+              safetyConcern
+            ].filter(Boolean).length;
+
+            const factors: { label: string; points: number }[] = [];
+            if ((s.ed_visits as number) > 5)
+              factors.push({ label: `${s.ed_visits} ED visits`, points: 3 });
+            if (!s.has_active_careplan)
+              factors.push({ label: "No active care plan", points: 2 });
+            if ((s.chronic_condition_count as number) > 10)
+              factors.push({
+                label: `${s.chronic_condition_count} chronic conditions`,
+                points: 2
+              });
+            if (medCount >= 5)
+              factors.push({
+                label: `Polypharmacy (${medCount} meds)`,
+                points: 1
+              });
+            if (debt > 10000)
+              factors.push({
+                label: `$${Math.round(debt).toLocaleString()} outstanding debt`,
+                points: 1
+              });
+            if (sdohCount > 0)
+              factors.push({
+                label: `${sdohCount} SDOH flag(s): ${[
+                  housingInsecurity && "housing",
+                  transportBarrier && "transport",
+                  foodInsecurity && "food",
+                  safetyConcern && "safety"
+                ]
+                  .filter(Boolean)
+                  .join(", ")}`,
+                points: Math.min(sdohCount, 2)
+              });
+
+            const score = factors.reduce((acc, f) => acc + f.points, 0);
+            const pct = score / 14;
+            const level =
+              pct >= 0.6
+                ? "critical"
+                : pct >= 0.43
+                  ? "high"
+                  : pct >= 0.25
+                    ? "medium"
+                    : "low";
+
+            return {
+              patient: `${s.first} ${s.last}`,
+              patient_id: s.id,
+              score,
+              maxScore: 14,
+              level,
+              factors,
+              summary: {
+                ed_visits: s.ed_visits,
+                inpatient_visits: s.inpatient_visits,
+                chronic_conditions: s.chronic_condition_count,
+                has_care_plan: !!s.has_active_careplan,
+                total_cost: s.total_cost,
+                ed_inpatient_cost: s.ed_inpatient_total_cost,
+                active_meds: medCount,
+                outstanding_debt: debt
+              }
+            };
+          }
+        }),
+
+        // Return the full population ranked by risk score (same as Risk Dashboard tab)
+        getTopRiskPatients: tool({
+          description:
+            "Return patients ranked by their UI risk score — the same list shown in the Population Risk Dashboard tab. " +
+            "Use this when the user asks who the highest-risk patients are, or wants a population-level view. " +
+            "Optionally filter by risk level.",
+          inputSchema: z.object({
+            limit: z
+              .number()
+              .default(20)
+              .describe("Number of patients to return (default 20)"),
+            level: z
+              .enum(["all", "critical", "high", "medium", "low"])
+              .default("all")
+              .describe("Filter by risk level")
+          }),
+          execute: async ({ limit, level }) => {
+            const DB =
+              "https://uic-hackathon-data.christian-7f4.workers.dev/query";
+            const q = async (sql: string) => {
+              const r = await fetch(DB, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sql })
+              });
+              return ((await r.json()) as { results: Record<string, unknown>[] })
+                .results ?? [];
+            };
+
+            const [summaries, meds, debts, sdoh] = await Promise.all([
+              q(
+                `SELECT id, first, last, age, city, ed_visits, inpatient_visits, total_cost, ed_inpatient_total_cost, chronic_condition_count, has_active_careplan FROM patient_summary LIMIT 200`
+              ),
+              q(
+                `SELECT PATIENT, COUNT(*) AS med_count FROM medications WHERE STOP IS NULL GROUP BY PATIENT LIMIT 200`
+              ),
+              q(
+                `SELECT PATIENTID, ROUND(SUM(OUTSTANDING), 2) AS debt FROM claims_transactions GROUP BY PATIENTID LIMIT 200`
+              ),
+              q(
+                `SELECT PATIENT, COUNT(*) AS sdoh_count FROM observations WHERE DESCRIPTION LIKE '%PRAPARE%' AND ((LOWER(DESCRIPTION) LIKE '%housing%' AND VALUE = 'Yes') OR (LOWER(DESCRIPTION) LIKE '%transportation%' AND VALUE = 'Yes') OR (LOWER(DESCRIPTION) LIKE '%food%' AND VALUE = 'Yes') OR (LOWER(DESCRIPTION) LIKE '%physically and emotionally safe%' AND VALUE = 'No')) GROUP BY PATIENT LIMIT 200`
+              )
+            ]);
+
+            const medMap = new Map(
+              meds.map((r) => [r.PATIENT as string, r.med_count as number])
+            );
+            const debtMap = new Map(
+              debts.map((r) => [r.PATIENTID as string, r.debt as number])
+            );
+            const sdohMap = new Map(
+              sdoh.map((r) => [r.PATIENT as string, r.sdoh_count as number])
+            );
+
+            const scored = summaries.map((s) => {
+              const medCount = medMap.get(s.id as string) ?? 0;
+              const debt = debtMap.get(s.id as string) ?? 0;
+              const sdohCount = sdohMap.get(s.id as string) ?? 0;
+
+              const factors: string[] = [];
+              let score = 0;
+              if ((s.ed_visits as number) > 5) {
+                score += 3;
+                factors.push(`${s.ed_visits} ED visits`);
+              }
+              if (!s.has_active_careplan) {
+                score += 2;
+                factors.push("No care plan");
+              }
+              if ((s.chronic_condition_count as number) > 10) {
+                score += 2;
+                factors.push(`${s.chronic_condition_count} conditions`);
+              }
+              if (medCount >= 5) {
+                score += 1;
+                factors.push(`Polypharmacy (${medCount})`);
+              }
+              if (debt > 10000) {
+                score += 1;
+                factors.push(`$${Math.round(debt / 1000)}k debt`);
+              }
+              if (sdohCount > 0) {
+                score += Math.min(sdohCount, 2);
+                factors.push(`${sdohCount} SDOH flag(s)`);
+              }
+
+              const pct = score / 14;
+              const lvl =
+                pct >= 0.6
+                  ? "critical"
+                  : pct >= 0.43
+                    ? "high"
+                    : pct >= 0.25
+                      ? "medium"
+                      : "low";
+              return {
+                id: s.id,
+                name: `${s.first} ${s.last}`,
+                age: s.age,
+                city: s.city,
+                score,
+                level: lvl,
+                factors,
+                ed_visits: s.ed_visits,
+                chronic_conditions: s.chronic_condition_count,
+                has_care_plan: !!s.has_active_careplan,
+                total_cost: s.total_cost,
+                ed_cost: s.ed_inpatient_total_cost
+              };
+            });
+
+            const filtered = (
+              level === "all"
+                ? scored
+                : scored.filter((p) => p.level === level)
+            )
+              .sort((a, b) => b.score - a.score)
+              .slice(0, limit);
+
+            const stats = {
+              total: summaries.length,
+              critical: scored.filter((p) => p.level === "critical").length,
+              high: scored.filter((p) => p.level === "high").length,
+              medium: scored.filter((p) => p.level === "medium").length,
+              low: scored.filter((p) => p.level === "low").length,
+              no_care_plan: scored.filter((p) => !p.has_care_plan).length
+            };
+
+            return { stats, patients: filtered };
           }
         }),
 
