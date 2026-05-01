@@ -73,11 +73,33 @@ export class ChatAgent extends AIChatAgent<Env> {
       model: workersai("@cf/moonshotai/kimi-k2.6", {
         sessionAffinity: this.sessionAffinity
       }),
-      system: `You are a helpful assistant that can understand images. You can check the weather, get the user's timezone, run calculations, and schedule tasks. When users share images, describe what you see and answer questions about them.
+      system: `You are a healthcare data analyst helping care coordinators at a value-based primary care practice.
+
+You have access to a database of 117 synthetic patients. Use the queryDatabase tool to investigate patient data.
+
+Start every investigation with:
+SELECT * FROM patient_summary ORDER BY ed_inpatient_total_cost DESC LIMIT 10
+
+The patient_summary view columns are:
+id, first, last, age, income, ed_visits, inpatient_visits, total_cost, ed_inpatient_total_cost, chronic_condition_count, has_active_careplan
+
+Other tables:
+- encounters: filter by ENCOUNTERCLASS (emergency, inpatient, ambulatory, urgentcare, wellness)
+- conditions: active when STOP IS NULL — includes both clinical and SDOH conditions
+- observations: PRAPARE social screenings (housing, food, transport, stress)
+- claims_transactions: financial data — join on PATIENTID (not PATIENT)
+- medications: active when STOP IS NULL
+- careplans: active when STOP IS NULL
+
+Rules:
+- Never show raw JSON to users — always format results as a table or clear summary
+- Always include a LIMIT clause in SQL queries
+- Synthea patient names have numeric suffixes ("Lindsay928 Brekke496"). When searching by name, use LIKE with LOWER(), not =
+- Before recommending any action, summarize findings and ask the coordinator to confirm
 
 ${getSchedulePrompt({ date: new Date() })}
 
-If the user asks to schedule a task, use the schedule tool to schedule the task.`,
+If the user asks to schedule a task, use the schedule tool.`,
       // Prune old tool calls to save tokens on long conversations
       messages: pruneMessages({
         messages: inlineDataUrls(await convertToModelMessages(this.messages)),
@@ -86,6 +108,33 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
       tools: {
         // MCP tools from connected servers
         ...mcpTools,
+
+        // Healthcare data: query the shared D1 patient dataset (read-only)
+        queryDatabase: tool({
+          description:
+            "Execute a SQL SELECT query against the patient dataset. " +
+            "Use patient_summary as your starting point — it has one row per patient " +
+            "with pre-computed visit counts, costs, and care plan flags. " +
+            "Tables: patients, encounters, conditions, medications, " +
+            "observations, procedures, claims_transactions, careplans. " +
+            "IMPORTANT: claims_transactions joins on PATIENTID, not PATIENT.",
+          inputSchema: z.object({
+            sql: z
+              .string()
+              .describe("A valid SQL SELECT statement. Always include a LIMIT clause.")
+          }),
+          execute: async ({ sql }) => {
+            const res = await fetch(
+              "https://uic-hackathon-data.christian-7f4.workers.dev/query",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sql })
+              }
+            );
+            return (await res.json()) as object;
+          }
+        }),
 
         // Server-side tool: runs automatically on the server
         getWeather: tool({
@@ -197,7 +246,7 @@ If the user asks to schedule a task, use the schedule tool to schedule the task.
           }
         })
       },
-      stopWhen: stepCountIs(5),
+      stopWhen: stepCountIs(20),
       abortSignal: options?.abortSignal
     });
 
