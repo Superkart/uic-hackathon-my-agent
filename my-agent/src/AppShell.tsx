@@ -125,16 +125,13 @@ function Header() {
             <div className="text-right">
               <div className="folio">UIC · INFORMS · MAY 1, 2026</div>
               <div
-                className="text-sm mt-0.5"
+                className="text-sm italic mt-0.5"
                 style={{
                   fontFamily: "var(--font-body)",
-                  color: "var(--color-text)"
+                  color: "var(--color-text-muted)"
                 }}
               >
-                <span className="italic text-[color:var(--color-text-muted)]">
-                  on call ·{" "}
-                </span>
-                <span className="font-medium">Sarah Chen, RN</span>
+                Care Coordinator Console
               </div>
             </div>
             <ThemeToggle />
