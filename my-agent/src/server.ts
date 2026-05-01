@@ -629,14 +629,31 @@ If the user asks to schedule a reminder unrelated to a patient, use the schedule
             patientName: z.string().describe("Full patient name"),
             reason: z.string().describe("Brief clinical justification for outreach"),
             subject: z.string().describe("Subject line of the outreach message"),
-            body: z.string().describe("Full outreach message body for the coordinator to review and approve")
+            body: z.string().describe("Full outreach message body for the coordinator to review and approve"),
+            coordinatorNote: z.string().optional().describe("Optional note added by the coordinator before approving")
           }),
           needsApproval: async () => true,
-          execute: async ({ patientName }) => ({
-            status: "sent",
-            message: `Outreach for ${patientName} approved and queued for sending.`,
-            timestamp: new Date().toISOString()
-          })
+          execute: async ({ patientName, reason, body, coordinatorNote }) => {
+            const id = `d_${Date.now()}`;
+            this.sql`
+              INSERT INTO decisions (id, patient_id, patient_name, action, draft_message, coordinator_note)
+              VALUES (
+                ${id},
+                ${"unknown"},
+                ${patientName},
+                ${reason},
+                ${body},
+                ${coordinatorNote ?? null}
+              )
+            `;
+            this.broadcast(JSON.stringify({ type: "decision-recorded", id }));
+            return {
+              status: "sent",
+              decisionId: id,
+              message: `Outreach for ${patientName} approved and logged to the audit trail.`,
+              timestamp: new Date().toISOString()
+            };
+          }
         }),
 
         // Server-side tool: runs automatically on the server

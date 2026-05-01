@@ -96,6 +96,67 @@ function ThemeToggle() {
   );
 }
 
+// ── Outreach approval card (own component so useRef is at top level) ──
+
+function OutreachApprovalCard({
+  input,
+  approvalId,
+  addToolApprovalResponse
+}: {
+  input: { patientName: string; reason: string; subject: string; body: string };
+  approvalId: string | undefined;
+  addToolApprovalResponse: (r: { id: string; approved: boolean }) => void;
+}) {
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  return (
+    <div className="flex justify-start">
+      <Surface className="max-w-[90%] w-full px-4 py-4 rounded-xl ring-2 ring-kumo-warning space-y-3">
+        <div className="flex items-center gap-2">
+          <PaperPlaneRightIcon size={16} className="text-kumo-warning" />
+          <Text size="sm" bold>Review Outreach Draft</Text>
+          <Badge variant="primary">{input.patientName}</Badge>
+        </div>
+        <div>
+          <Text size="xs" variant="secondary">Reason for outreach</Text>
+          <p className="text-sm text-kumo-default mt-0.5">{input.reason}</p>
+        </div>
+        <div className="border border-kumo-line rounded-lg divide-y divide-kumo-line overflow-hidden">
+          <div className="px-3 py-2 bg-kumo-control">
+            <Text size="xs" variant="secondary">Subject</Text>
+            <p className="text-sm font-medium text-kumo-default mt-0.5">{input.subject}</p>
+          </div>
+          <div className="px-3 py-2 bg-kumo-base">
+            <Text size="xs" variant="secondary">Message</Text>
+            <p className="text-sm text-kumo-default whitespace-pre-wrap mt-0.5">{input.body}</p>
+          </div>
+        </div>
+        <div>
+          <Text size="xs" variant="secondary">Coordinator note (optional — your local context)</Text>
+          <textarea
+            ref={noteRef}
+            rows={2}
+            placeholder='e.g. "Daughter drives on Tuesdays, call before noon"'
+            className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-accent resize-none"
+          />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button variant="primary" size="sm" icon={<CheckCircleIcon size={14} />}
+            onClick={() => {
+              if (!approvalId) return;
+              addToolApprovalResponse({ id: approvalId, approved: true });
+            }}>
+            Approve &amp; Send
+          </Button>
+          <Button variant="secondary" size="sm" icon={<XCircleIcon size={14} />}
+            onClick={() => approvalId && addToolApprovalResponse({ id: approvalId, approved: false })}>
+            Reject
+          </Button>
+        </div>
+      </Surface>
+    </div>
+  );
+}
+
 // ── Tool rendering ────────────────────────────────────────────────────
 
 function ToolPartView({
@@ -141,39 +202,11 @@ function ToolPartView({
     if (toolName === "sendOutreach") {
       const input = part.input as { patientName: string; reason: string; subject: string; body: string };
       return (
-        <div className="flex justify-start">
-          <Surface className="max-w-[90%] w-full px-4 py-4 rounded-xl ring-2 ring-kumo-warning space-y-3">
-            <div className="flex items-center gap-2">
-              <PaperPlaneRightIcon size={16} className="text-kumo-warning" />
-              <Text size="sm" bold>Review Outreach Draft</Text>
-              <Badge variant="primary">{input.patientName}</Badge>
-            </div>
-            <div>
-              <Text size="xs" variant="secondary">Reason for outreach</Text>
-              <p className="text-sm text-kumo-default mt-0.5">{input.reason}</p>
-            </div>
-            <div className="border border-kumo-line rounded-lg divide-y divide-kumo-line overflow-hidden">
-              <div className="px-3 py-2 bg-kumo-control">
-                <Text size="xs" variant="secondary">Subject</Text>
-                <p className="text-sm font-medium text-kumo-default mt-0.5">{input.subject}</p>
-              </div>
-              <div className="px-3 py-2 bg-kumo-base">
-                <Text size="xs" variant="secondary">Message</Text>
-                <p className="text-sm text-kumo-default whitespace-pre-wrap mt-0.5">{input.body}</p>
-              </div>
-            </div>
-            <div className="flex gap-2 pt-1">
-              <Button variant="primary" size="sm" icon={<CheckCircleIcon size={14} />}
-                onClick={() => approvalId && addToolApprovalResponse({ id: approvalId, approved: true })}>
-                Approve &amp; Send
-              </Button>
-              <Button variant="secondary" size="sm" icon={<XCircleIcon size={14} />}
-                onClick={() => approvalId && addToolApprovalResponse({ id: approvalId, approved: false })}>
-                Reject
-              </Button>
-            </div>
-          </Surface>
-        </div>
+        <OutreachApprovalCard
+          input={input}
+          approvalId={approvalId}
+          addToolApprovalResponse={addToolApprovalResponse}
+        />
       );
     }
 
