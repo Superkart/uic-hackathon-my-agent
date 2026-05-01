@@ -222,7 +222,13 @@ function ToolPartView({
 
 // ── Main chat ─────────────────────────────────────────────────────────
 
-function Chat() {
+function Chat({
+  pendingQuery,
+  onQueryConsumed
+}: {
+  pendingQuery?: string | null;
+  onQueryConsumed?: () => void;
+}) {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
   const [showDebug, setShowDebug] = useState(false);
@@ -340,6 +346,13 @@ function Chat() {
   });
 
   const isStreaming = status === "streaming" || status === "submitted";
+
+  // Auto-fire a query sent from the Risk Dashboard
+  useEffect(() => {
+    if (!pendingQuery || !connected || isStreaming) return;
+    sendMessage({ role: "user", parts: [{ type: "text", text: pendingQuery }] });
+    onQueryConsumed?.();
+  }, [pendingQuery, connected, isStreaming, sendMessage, onQueryConsumed]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -934,6 +947,14 @@ type Tab = "chat" | "metrics" | "dashboard";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
+  const [pendingAgentQuery, setPendingAgentQuery] = useState<string | null>(null);
+
+  const handleSendToAgent = useCallback((name: string, id: string) => {
+    setPendingAgentQuery(
+      `Analyze patient ${name} (ID: ${id}) for preventable ED visit risk. Run a full profile, score their risk factors, and draft an outreach recommendation for my review.`
+    );
+    setTab("chat");
+  }, []);
 
   return (
     <Toasty>
@@ -985,11 +1006,14 @@ export default function App() {
             }
           >
             {tab === "chat" ? (
-              <Chat />
+              <Chat
+                pendingQuery={pendingAgentQuery}
+                onQueryConsumed={() => setPendingAgentQuery(null)}
+              />
             ) : tab === "metrics" ? (
               <PatientMetrics />
             ) : (
-              <RiskDashboard />
+              <RiskDashboard onSendToAgent={handleSendToAgent} />
             )}
           </Suspense>
         </div>
