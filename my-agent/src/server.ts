@@ -276,6 +276,26 @@ ${getSchedulePrompt({ date: new Date() })}`,
           }
         }),
 
+        // Draft outreach for a high-risk patient — always requires human approval
+        sendOutreach: tool({
+          description:
+            "Draft and send a care coordinator outreach message to a high-risk patient. " +
+            "ALWAYS requires human approval before sending — never execute without confirmation. " +
+            "Use this after identifying a patient who needs intervention.",
+          inputSchema: z.object({
+            patientName: z.string().describe("Full patient name"),
+            reason: z.string().describe("Brief clinical justification for outreach"),
+            subject: z.string().describe("Subject line of the outreach message"),
+            body: z.string().describe("Full outreach message body for the coordinator to review and approve")
+          }),
+          needsApproval: async () => true,
+          execute: async ({ patientName }) => ({
+            status: "sent",
+            message: `Outreach for ${patientName} approved and queued for sending.`,
+            timestamp: new Date().toISOString()
+          })
+        }),
+
         // Server-side tool: runs automatically on the server
         getWeather: tool({
           description: "Get the current weather for a city",

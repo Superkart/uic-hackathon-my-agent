@@ -135,6 +135,47 @@ function ToolPartView({
   // Needs approval
   if ("approval" in part && part.state === "approval-requested") {
     const approvalId = (part.approval as { id?: string })?.id;
+
+    // Custom card for outreach drafts
+    if (toolName === "sendOutreach") {
+      const input = part.input as { patientName: string; reason: string; subject: string; body: string };
+      return (
+        <div className="flex justify-start">
+          <Surface className="max-w-[90%] w-full px-4 py-4 rounded-xl ring-2 ring-kumo-warning space-y-3">
+            <div className="flex items-center gap-2">
+              <PaperPlaneRightIcon size={16} className="text-kumo-warning" />
+              <Text size="sm" bold>Review Outreach Draft</Text>
+              <Badge variant="primary">{input.patientName}</Badge>
+            </div>
+            <div>
+              <Text size="xs" variant="secondary">Reason for outreach</Text>
+              <p className="text-sm text-kumo-default mt-0.5">{input.reason}</p>
+            </div>
+            <div className="border border-kumo-line rounded-lg divide-y divide-kumo-line overflow-hidden">
+              <div className="px-3 py-2 bg-kumo-control">
+                <Text size="xs" variant="secondary">Subject</Text>
+                <p className="text-sm font-medium text-kumo-default mt-0.5">{input.subject}</p>
+              </div>
+              <div className="px-3 py-2 bg-kumo-base">
+                <Text size="xs" variant="secondary">Message</Text>
+                <p className="text-sm text-kumo-default whitespace-pre-wrap mt-0.5">{input.body}</p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="primary" size="sm" icon={<CheckCircleIcon size={14} />}
+                onClick={() => approvalId && addToolApprovalResponse({ id: approvalId, approved: true })}>
+                Approve &amp; Send
+              </Button>
+              <Button variant="secondary" size="sm" icon={<XCircleIcon size={14} />}
+                onClick={() => approvalId && addToolApprovalResponse({ id: approvalId, approved: false })}>
+                Reject
+              </Button>
+            </div>
+          </Surface>
+        </div>
+      );
+    }
+
     return (
       <div className="flex justify-start">
         <Surface className="max-w-[85%] px-4 py-3 rounded-xl ring-2 ring-kumo-warning">
@@ -464,7 +505,7 @@ function Chat({
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold text-kumo-default">
-              <span className="mr-2">⛅</span>Agent Starter
+              <span className="mr-2">🏥</span>Care Coordinator Agent
             </h1>
             <Badge variant="secondary">
               <ChatCircleDotsIcon size={12} weight="bold" className="mr-1" />
@@ -674,14 +715,14 @@ function Chat({
           {messages.length === 0 && (
             <Empty
               icon={<ChatCircleDotsIcon size={32} />}
-              title="Start a conversation"
+              title="Ask about your patients"
               contents={
                 <div className="flex flex-wrap justify-center gap-2">
                   {[
-                    "What's the weather in Paris?",
-                    "What timezone am I in?",
-                    "Calculate 5000 * 3",
-                    "Remind me in 5 minutes to take a break"
+                    "Who are the highest-risk patients right now?",
+                    "Which critical patients have no care plan?",
+                    "Tell me about Lindsay Brekke's care gaps",
+                    "Draft outreach for the top 3 ED utilizers"
                   ].map((prompt) => (
                     <Button
                       key={prompt}
