@@ -3,6 +3,10 @@ import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { useAgent } from "agents/react";
 import App from "./app";
 import PillIcon from "./components/PillIcon";
+import {
+  PatientProvider,
+  useActivePatientData
+} from "./PatientContext";
 import type { ChatAgent, Decision } from "./server";
 
 // ─────────────────────────────────────────────────────────────────
@@ -49,16 +53,6 @@ function useDecisions(): Decision[] {
   return decisions;
 }
 
-const MOCK_ACTIVE_PATIENT = {
-  name: "Lindsay928 Brekke496",
-  age: 47,
-  ed_visits: 44,
-  inpatient_visits: 3,
-  total_cost: 287_412,
-  has_active_careplan: false,
-  top_conditions: ["Chronic migraine", "Generalized anxiety", "Hypertension"],
-  sdoh_flags: ["Transportation barrier", "Not in labor force"]
-};
 
 // ─────────────────────────────────────────────────────────────────
 // Small components
@@ -193,8 +187,39 @@ function StatCell({
   );
 }
 
-function PatientContext() {
-  const p = MOCK_ACTIVE_PATIENT;
+function PatientPanel() {
+  const { data: p, loading } = useActivePatientData();
+
+  if (!p) {
+    return (
+      <aside
+        className="w-[300px] flex-shrink-0 overflow-y-auto anim-fade-up stagger-2 relative z-10"
+        style={{
+          background: "var(--color-bg-raised)",
+          borderRight: "1px solid var(--color-border)"
+        }}
+      >
+        <div className="p-6">
+          <div className="folio mb-1">§ I — Active Subject</div>
+          <p
+            className="mt-3 italic text-sm"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            {loading
+              ? "Pulling top-risk patient…"
+              : "No active subject. Select one from §II Patient Metrics or click a row on §III Risk Dashboard."}
+          </p>
+        </div>
+      </aside>
+    );
+  }
+
+  const fullName = `${p.first} ${p.last}`;
+  const displayName = fullName.replace(/\d+/g, "").trim();
+  const syntheaId = fullName.match(/\d+/)?.[0] ?? "";
+  const isHighUtilizer = p.ed_visits >= 5 || p.inpatient_visits >= 3;
+  const debtFlag = p.outstanding_debt > 10_000;
+
   return (
     <aside
       className="w-[300px] flex-shrink-0 overflow-y-auto anim-fade-up stagger-2 relative z-10"
@@ -205,9 +230,7 @@ function PatientContext() {
     >
       <div className="p-6">
         <div className="folio mb-1">§ I — Active Subject</div>
-        <h2 className="display-title text-[26px] mt-2">
-          {p.name.replace(/\d+/g, "")}
-        </h2>
+        <h2 className="display-title text-[26px] mt-2">{displayName}</h2>
         <p
           className="mt-1 italic"
           style={{
@@ -215,12 +238,24 @@ function PatientContext() {
             color: "var(--color-text-muted)"
           }}
         >
-          synthea id ·{" "}
-          <span className="numeral not-italic">
-            {p.name.match(/\d+/)?.[0]}
-          </span>
-          , age <span className="numeral not-italic">{p.age}</span>
+          {syntheaId && (
+            <>
+              synthea id ·{" "}
+              <span className="numeral not-italic">{syntheaId}</span>
+              {", "}
+            </>
+          )}
+          age <span className="numeral not-italic">{p.age}</span>
+          {p.gender && <>, {p.gender === "M" ? "male" : "female"}</>}
         </p>
+        {p.city && (
+          <p
+            className="text-xs mt-1"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            {p.city}, {p.state}
+          </p>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-1.5">
           {!p.has_active_careplan && (
@@ -228,7 +263,12 @@ function PatientContext() {
               No care plan
             </span>
           )}
-          <span className="risk-pill risk-pill--warn">High utilizer</span>
+          {isHighUtilizer && (
+            <span className="risk-pill risk-pill--warn">High utilizer</span>
+          )}
+          {debtFlag && (
+            <span className="risk-pill risk-pill--danger">Debt</span>
+          )}
         </div>
       </div>
 
@@ -238,62 +278,94 @@ function PatientContext() {
         className="grid grid-cols-2"
         style={{ borderBottom: "1px solid var(--color-border)" }}
       >
-        <StatCell label="ED visits" value={p.ed_visits} emphasis="danger" />
-        <StatCell label="Inpatient" value={p.inpatient_visits} />
+        <StatCell
+          label="ED visits"
+          value={p.ed_visits}
+          emphasis={p.ed_visits >= 5 ? "danger" : "default"}
+        />
+        <StatCell
+          label="Inpatient"
+          value={p.inpatient_visits}
+          emphasis={p.inpatient_visits >= 3 ? "danger" : "default"}
+        />
         <StatCell
           label="Cohort cost"
-          value={`$${(p.total_cost / 1000).toFixed(0)}K`}
+          value={
+            p.total_cost >= 1_000_000
+              ? `$${(p.total_cost / 1_000_000).toFixed(1)}M`
+              : `$${Math.round(p.total_cost / 1000)}K`
+          }
         />
-        <StatCell label="Care plan" value={p.has_active_careplan ? "✓" : "—"} />
+        <StatCell
+          label="Care plan"
+          value={p.has_active_careplan ? "✓" : "—"}
+          emphasis={p.has_active_careplan ? "default" : "danger"}
+        />
       </div>
 
       <div className="p-6">
         <div className="label-mono mb-3">§ II — Active Conditions</div>
-        <ul className="space-y-1.5">
-          {p.top_conditions.map((c, i) => (
-            <li
-              key={c}
-              className="flex items-baseline gap-3"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              <span className="numeral text-xs text-[color:var(--color-text-muted)] w-5">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span className="text-[15px]">{c}</span>
-            </li>
-          ))}
-        </ul>
+        {p.top_conditions.length === 0 ? (
+          <p
+            className="text-sm italic"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            No active conditions on record.
+          </p>
+        ) : (
+          <ul className="space-y-1.5">
+            {p.top_conditions.slice(0, 6).map((c, i) => (
+              <li
+                key={c}
+                className="flex items-baseline gap-3"
+                style={{ fontFamily: "var(--font-body)" }}
+              >
+                <span className="numeral text-xs text-[color:var(--color-text-muted)] w-5">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="text-[14px] leading-snug">{c}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <hr className="rule-ekg" />
 
       <div className="p-6">
         <div className="label-mono mb-3">§ III — Barriers</div>
-        <ul className="space-y-2">
-          {p.sdoh_flags.map((f) => (
-            <li
-              key={f}
-              className="flex items-center gap-2"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              <span
-                style={{ color: "var(--color-primary)" }}
-                aria-hidden="true"
+        {p.sdoh_flags.length === 0 ? (
+          <p
+            className="text-sm italic"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            No SDOH flags on record.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {p.sdoh_flags.slice(0, 6).map((f) => (
+              <li
+                key={f}
+                className="flex items-baseline gap-2"
+                style={{ fontFamily: "var(--font-body)" }}
               >
-                ✕
-              </span>
-              <span className="text-[15px] italic">{f}</span>
-            </li>
-          ))}
-        </ul>
+                <span
+                  style={{ color: "var(--color-primary)" }}
+                  aria-hidden="true"
+                >
+                  ✕
+                </span>
+                <span className="text-[14px] italic leading-snug">{f}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <hr className="rule-ekg" />
 
       <div className="p-6 pt-4">
-        <div className="folio">
-          End of subject record · cont. p. ii →
-        </div>
+        <div className="folio">End of subject record · cont. p. ii →</div>
       </div>
     </aside>
   );
@@ -472,18 +544,20 @@ export default function AppShell() {
   }, []);
 
   return (
-    <div
-      className="h-full w-full flex flex-col"
-      style={{ background: "var(--color-bg)", color: "var(--color-text)" }}
-    >
-      <Header />
-      <div className="flex-1 flex min-h-0">
-        <PatientContext />
-        <ChatFrame>
-          <App />
-        </ChatFrame>
-        <AuditTrail />
+    <PatientProvider>
+      <div
+        className="h-full w-full flex flex-col"
+        style={{ background: "var(--color-bg)", color: "var(--color-text)" }}
+      >
+        <Header />
+        <div className="flex-1 flex min-h-0">
+          <PatientPanel />
+          <ChatFrame>
+            <App />
+          </ChatFrame>
+          <AuditTrail />
+        </div>
       </div>
-    </div>
+    </PatientProvider>
   );
 }

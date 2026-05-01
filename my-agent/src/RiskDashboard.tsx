@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Badge, Surface, Text } from "@cloudflare/kumo";
+import { usePatient } from "./PatientContext";
 import {
   ArrowClockwiseIcon,
   WarningIcon,
@@ -191,15 +192,30 @@ function StatCard({
 
 function PatientRow({
   p,
-  rank
+  rank,
+  onSelect,
+  isActive
 }: {
   p: ScoredPatient;
   rank: number;
+  onSelect: (id: string) => void;
+  isActive: boolean;
 }) {
   const barPct = Math.min((p.score / 14) * 100, 100);
 
   return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line hover:ring-kumo-accent transition-all">
+    <Surface
+      className={`p-4 rounded-xl ring transition-all cursor-pointer ${isActive ? "ring-kumo-danger" : "ring-kumo-line hover:ring-kumo-accent"}`}
+      onClick={() => onSelect(p.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(p.id);
+        }
+      }}
+    >
       <div className="flex items-start gap-4">
         {/* Rank */}
         <div className="shrink-0 w-8 text-center">
@@ -284,6 +300,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 // ── Main component ────────────────────────────────────────────────────
 
 export function RiskDashboard() {
+  const { activePatientId, setActivePatient } = usePatient();
   const [patients, setPatients] = useState<ScoredPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -578,7 +595,13 @@ export function RiskDashboard() {
                   </div>
                 )}
                 {visible.map((p, i) => (
-                  <PatientRow key={p.id} p={p} rank={i + 1} />
+                  <PatientRow
+                    key={p.id}
+                    p={p}
+                    rank={i + 1}
+                    onSelect={setActivePatient}
+                    isActive={p.id === activePatientId}
+                  />
                 ))}
               </div>
 
