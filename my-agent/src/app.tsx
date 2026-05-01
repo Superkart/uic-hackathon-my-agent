@@ -1,5 +1,6 @@
 import { Suspense, useCallback, useState, useEffect, useRef } from "react";
 import { PatientMetrics } from "./PatientMetrics";
+import { RiskDashboard } from "./RiskDashboard";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
@@ -929,7 +930,7 @@ function Chat() {
   );
 }
 
-type Tab = "chat" | "metrics";
+type Tab = "chat" | "metrics" | "dashboard";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
@@ -961,6 +962,17 @@ export default function App() {
           >
             📊 Patient Metrics
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("dashboard")}
+            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              tab === "dashboard"
+                ? "border-kumo-accent text-kumo-accent"
+                : "border-transparent text-kumo-inactive hover:text-kumo-default"
+            }`}
+          >
+            🚨 Risk Dashboard
+          </button>
         </div>
 
         {/* Tab content */}
@@ -972,7 +984,13 @@ export default function App() {
               </div>
             }
           >
-            {tab === "chat" ? <Chat /> : <PatientMetrics />}
+            {tab === "chat" ? (
+              <Chat />
+            ) : tab === "metrics" ? (
+              <PatientMetrics />
+            ) : (
+              <RiskDashboard />
+            )}
           </Suspense>
         </div>
       </div>

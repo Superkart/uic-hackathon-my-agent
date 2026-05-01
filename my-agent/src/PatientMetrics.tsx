@@ -292,7 +292,7 @@ export function PatientMetrics() {
           `SELECT * FROM patient_summary WHERE id = '${patientId}' LIMIT 1`
         ),
         dbQuery<{ total_debt: number }>(
-          `SELECT ROUND(SUM(AMOUNT_OWED), 2) AS total_debt
+          `SELECT ROUND(SUM(OUTSTANDING), 2) AS total_debt
            FROM claims_transactions WHERE PATIENTID = '${patientId}' LIMIT 1`
         ),
         dbQuery<{ DESCRIPTION: string; VALUE: string }>(
