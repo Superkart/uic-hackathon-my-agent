@@ -1001,9 +1001,9 @@ export default function App() {
   return (
     <Toasty>
       <div className="flex flex-col h-screen">
-        {/* Tab bar — editorial */}
+        {/* Tab bar — editorial. Horizontally scrollable on narrow viewports. */}
         <div
-          className="flex shrink-0"
+          className="flex shrink-0 overflow-x-auto whitespace-nowrap"
           style={{
             background: "var(--color-bg-surface)",
             borderBottom: "1px solid var(--color-border)"
@@ -1021,7 +1021,7 @@ export default function App() {
               key={id}
               type="button"
               onClick={() => setTab(id)}
-              className="px-6 py-3.5 label-mono border-b-2 transition-colors"
+              className="px-3 sm:px-4 md:px-6 py-3 md:py-3.5 label-mono border-b-2 transition-colors flex-shrink-0"
               style={{
                 borderBottomColor:
                   tab === id ? "var(--color-primary)" : "transparent",
@@ -1032,7 +1032,7 @@ export default function App() {
               }}
             >
               <span
-                className="numeral mr-2"
+                className="numeral mr-1.5 md:mr-2"
                 style={{
                   color:
                     tab === id

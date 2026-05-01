@@ -396,9 +396,9 @@ body::before {
   );
 }
 
-/* The cuvette — masthead lockup */
+/* The cuvette — masthead lockup. Display is controlled via utility classes
+   on the element (hidden lg:flex) so we don't force a display value here. */
 .masthead-lockup {
-  display: inline-flex;
   align-items: baseline;
   gap: 0.55rem;
 }
