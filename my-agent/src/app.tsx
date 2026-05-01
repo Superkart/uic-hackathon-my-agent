@@ -1,4 +1,6 @@
 import { Suspense, useCallback, useState, useEffect, useRef } from "react";
+import { PatientMetrics } from "./PatientMetrics";
+import { RiskDashboard } from "./RiskDashboard";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
@@ -928,18 +930,70 @@ function Chat() {
   );
 }
 
+type Tab = "chat" | "metrics" | "dashboard";
+
 export default function App() {
+  const [tab, setTab] = useState<Tab>("chat");
+
   return (
     <Toasty>
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center h-screen text-kumo-inactive">
-            Loading...
-          </div>
-        }
-      >
-        <Chat />
-      </Suspense>
+      <div className="flex flex-col h-screen">
+        {/* Tab bar */}
+        <div className="flex border-b border-kumo-line bg-kumo-base shrink-0">
+          <button
+            type="button"
+            onClick={() => setTab("chat")}
+            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              tab === "chat"
+                ? "border-kumo-accent text-kumo-accent"
+                : "border-transparent text-kumo-inactive hover:text-kumo-default"
+            }`}
+          >
+            💬 Agent Chat
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("metrics")}
+            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              tab === "metrics"
+                ? "border-kumo-accent text-kumo-accent"
+                : "border-transparent text-kumo-inactive hover:text-kumo-default"
+            }`}
+          >
+            📊 Patient Metrics
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("dashboard")}
+            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              tab === "dashboard"
+                ? "border-kumo-accent text-kumo-accent"
+                : "border-transparent text-kumo-inactive hover:text-kumo-default"
+            }`}
+          >
+            🚨 Risk Dashboard
+          </button>
+        </div>
+
+        {/* Tab content */}
+        <div className="flex-1 overflow-hidden">
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-full text-kumo-inactive">
+                Loading...
+              </div>
+            }
+          >
+            {tab === "chat" ? (
+              <Chat />
+            ) : tab === "metrics" ? (
+              <PatientMetrics />
+            ) : (
+              <RiskDashboard />
+            )}
+          </Suspense>
+        </div>
+      </div>
     </Toasty>
   );
 }
