@@ -1,177 +1,117 @@
-# Build with Claude: Agents for Healthcare
-## UIC College of Business | May 1, 2026
+# The Preventable Visit Detector
 
-A hackathon where you build AI agents applied to real healthcare problems. You don't need to be a coder — the strongest coders wire the agent, the strongest thinkers design the prompt, the strongest communicators deliver the demo.
+A care coordinator console that uses an AI agent to identify patients at high risk of a preventable ED visit, score them across clinical and social factors, and route outreach decisions through a human-approval loop — with every approval logged to a persistent audit ledger.
+
+**Live demo:** https://my-agent.superkart.workers.dev
+
+Built for the UIC INFORMS Hackathon — *Build with Claude: Agents for Healthcare* (May 2026).
 
 ---
 
-## What's in this repo
+## What it does
 
-This is a **resource kit**, not a scaffold. Build however you want, with whatever tools you brought.
+The agent follows a multi-step workflow without being prompted to:
 
-```
-README.md                    ← you are here
-Hackathon/
-  prompts.md                 ← the 3 challenge prompts in full
-Workshop/
-  01_chat_only.py            ← step 1: system prompt only
-  02_with_tool.py            ← step 2: + tool definition
-  03_full_loop.py            ← step 3: + agentic loop (full agent)
-docs/
-  healthcare_primer.md       ← what is MedEx, VBC, ED utilization, SDOH
-  data_dictionary.md         ← what's in each table, key columns, gotchas
-  agent_building_guide.md    ← the agent pattern: prompt + tools + loop
-  agent_design_framework.md  ← 5 questions to answer BEFORE writing code
-  cloudflare_deploy.md       ← 5-step Cloudflare Workers deploy guide
-  shepherd_system_prompt.md  ← paste this into Claude Projects for a built-in teammate
-data/
-  schema.sql                 ← D1 database schema (9 tables + patient_summary view)
-  *.csv                      ← all dataset CSVs if you prefer local files
-examples/
-  python/agent_example.py    ← full reference agent in Python (Anthropic SDK)
-  typescript/agent_example.ts ← same in TypeScript
-```
+1. **Rank** — pulls the full patient population and scores each patient on a 14-point risk scale
+2. **Score** — breaks down the exact factors driving a patient's risk (ED visits, care plan gaps, chronic conditions, polypharmacy, debt, SDOH barriers)
+3. **Draft** — writes a 2–3 sentence outreach message addressed to the coordinator, naming the specific barrier
+4. **Record** — pauses and surfaces an approval dialog; the coordinator can edit the draft and add local context ("daughter drives Tuesdays") before approving
+5. **Task** — creates a follow-up task with a due date, also gated behind coordinator approval
+6. **Confirm** — summarizes what was logged and when
 
-**Live services you can use today:**
+The human is never bypassed. The agent drafts; the coordinator decides.
 
-| Service | URL |
+---
+
+## Features
+
+- **AI chat** — conversational interface backed by Cloudflare Workers AI (Kimi K2.6). Ask anything: "Who are my highest-risk patients?", "Tell me about Lindsay Brekke's care gaps", "Draft outreach for the top 3 ED utilizers."
+- **Population Risk Dashboard** — all 117 patients scored and ranked in real time; filterable by risk level (critical / high / medium / low), sortable by score, ED visits, conditions, or cost
+- **Patient Metrics** — deep profile for any patient: active conditions, medications, SDOH flags, outstanding debt, care plan status
+- **Health equity view** — high-risk rate broken down by race to surface systemic care gaps
+- **Cost opportunity panel** — total preventable ED/inpatient spend, share from critical+high patients, estimated savings at 30% prevention
+- **Decision Ledger** — real-time audit trail (right rail) of every coordinator-approved decision, persisted in Durable Object SQLite and updated via WebSocket broadcast
+- **Reports tab** — exportable summaries (CSV / JSON / text)
+- **Dark / light theme**, mobile-responsive layout
+
+---
+
+## Risk scoring formula
+
+| Factor | Points |
 |---|---|
-| Patient data API | `https://uic-hackathon-data.christian-7f4.workers.dev/query` |
-| Hackathon guide chatbot | `https://uic-hackathon-guide.christian-7f4.workers.dev/` |
-| Patient lookup specialist | `https://uic-patient-lookup.christian-7f4.workers.dev/lookup` |
+| ED visits > 5 | +3 |
+| No active care plan | +2 |
+| Chronic conditions > 10 | +2 |
+| Polypharmacy (≥ 5 active meds) | +1 |
+| Outstanding debt > $10k | +1 |
+| SDOH flags (housing / transport / food / safety) | +1 each, capped at +2 |
+| **Max** | **14** |
+
+Risk levels: **critical** ≥ 60% · **high** ≥ 43% · **medium** ≥ 25% · **low** < 25%
 
 ---
 
-## The database
+## Tech stack
 
-The patient dataset is hosted on a public read-only HTTP API. No account required — just make HTTP requests.
+| Layer | Technology |
+|---|---|
+| Runtime | Cloudflare Workers |
+| Agent state + audit ledger | Cloudflare Durable Objects (built-in SQLite) |
+| AI model | Workers AI — Kimi K2.6 (`@cf/moonshotai/kimi-k2.6`) |
+| Frontend | React + TypeScript + Vite |
+| UI components | Cloudflare Kumo design system |
+| Patient data | Live read-only HTTP API (Synthea synthetic dataset, 117 patients) |
+| Deployment | Cloudflare Workers + Assets (auto-deploy on push) |
 
-**Endpoint:** `POST https://uic-hackathon-data.christian-7f4.workers.dev/query`
+---
+
+## Agent tools
+
+| Tool | Gate | Purpose |
+|---|---|---|
+| `queryDatabase` | Auto | Raw SQL SELECT against the patient dataset |
+| `getPatientRiskScore` | Auto | Full risk breakdown for one patient (same formula as the dashboard) |
+| `getTopRiskPatients` | Auto | Population ranked by risk score, with population stats |
+| `recordDecision` | Human approval | Writes coordinator-approved outreach to the audit ledger |
+| `createTask` | Human approval | Schedules a follow-up task tied to an approved decision |
+
+---
+
+## Running locally
 
 ```bash
-# Try it right now
+# 1. Install dependencies
+cd my-agent
+npm install
+
+# 2. Log in to Cloudflare (required for the remote AI binding)
+npx wrangler login
+
+# 3. Start the dev server
+npm run dev
+```
+
+Open http://localhost:5173
+
+## Deploying
+
+```bash
+npm run deploy
+```
+
+Builds the frontend and deploys the Worker. Takes about 30 seconds.
+
+---
+
+## Dataset
+
+117 synthetic patients generated with [Synthea](https://github.com/synthetichealth/synthea). Queryable via a public read-only HTTP API — no auth required.
+
+```bash
 curl -X POST https://uic-hackathon-data.christian-7f4.workers.dev/query \
   -H "Content-Type: application/json" \
-  -d '{"sql": "SELECT first, last, ed_inpatient_total_cost FROM patient_summary ORDER BY ed_inpatient_total_cost DESC LIMIT 5"}'
+  -d '{"sql": "SELECT first, last, ed_visits, chronic_condition_count FROM patient_summary ORDER BY ed_inpatient_total_cost DESC LIMIT 5"}'
 ```
 
-**Rules:** Only `SELECT` statements are allowed. Responses are JSON `{ "results": [...] }`.
-
-**Tables:** `patients`, `encounters`, `conditions`, `medications`, `observations`, `procedures`, `claims_transactions`, `careplans`, `patient_summary` (pre-joined view — start here)
-
-See `docs/data_dictionary.md` for what each table contains and `data/schema.sql` for the full schema.
-
----
-
-## The dataset at a glance
-
-117 synthetic patients (Synthea). Key facts to know for your agent:
-
-| Stat | Value |
-|---|---|
-| Total healthcare costs | $27.9M across 8,316 encounters |
-| Inpatient share | 35% of total cost, only 2.8% of encounters |
-| Patients with at least one ED visit | 97 out of 117 (83%) |
-| Top 3 patients by cost | Giovanni Paucek ($3.4M), Chad ($2.8M), Chantelle Oberbrunner ($2.5M) |
-| Patients with no active care plan | 15 ED patients |
-| Patients on opioids | 21 (19 are ED frequent flyers) |
-| Patients with 5+ active medications | 25 |
-| Patients with >$10K outstanding medical debt | 93 |
-
----
-
-## The 3 challenge prompts
-
-Pick one. 5 teams per prompt.
-
-### Prompt 1: The Preventable Visit Detector
-Build an agent that identifies patients at high risk of a preventable ED visit and drafts intervention recommendations for a care coordinator to review and approve.
-
-**Pattern:** Filter → Score → Rank → Recommend → Human reviews
-
-### Prompt 2: The Cost Explainer
-Build a conversational agent a care manager can interrogate to understand why a patient is expensive and which costs are reducible.
-
-**Pattern:** Human asks → Agent queries → Presents findings → Human digs deeper
-
-### Prompt 3: The Care Barrier Agent
-Build an agent that analyzes a patient's full record, identifies specific barriers (financial, social, logistical), and generates a barrier-informed care plan for a coordinator to review.
-
-**Pattern:** Pull full profile → Identify barriers → Check care gaps → Generate plan → Human personalizes
-
-Full prompts with data guidance in `Hackathon/prompts.md`.
-
----
-
-## Getting started fast
-
-Paste this URL into your AI agent (Claude Code, Cursor, Copilot, Codex — any of them):
-
-```
-https://raw.githubusercontent.com/csomora/INFORMS-UIC-Hackathon/main/SETUP.md
-```
-
-Your agent will check your environment, fix anything missing, and get you running your first query in under 10 minutes.
-
----
-
-## Manual setup
-
-**Option A — Cloudflare Workers (free, no API key needed)**
-Uses Cloudflare Workers AI — free on Cloudflare's free tier. No external API key required.
-Fork this repo → scaffold agents-starter → connect to Cloudflare Builds → every push auto-deploys → demo a live URL.
-See `docs/cloudflare_deploy.md` for the full walkthrough (~15 min setup).
-
-**Option B — Python** (requires an LLM API key)
-```bash
-git clone https://github.com/csomora/INFORMS-UIC-Hackathon
-cd INFORMS-UIC-Hackathon/examples/python
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=your_key_here   # or OPENAI_API_KEY, GROQ_API_KEY, etc.
-python agent_example.py
-```
-Free key option: [Groq](https://console.groq.com) (OpenAI-compatible, generous free tier)
-
-**Option C — TypeScript/Node** (requires an LLM API key)
-```bash
-cd examples/typescript
-npm install
-export ANTHROPIC_API_KEY=your_key_here
-npm run start
-```
-
-**Option D — No code (Claude Projects fallback)**
-1. Create a new Claude Project at claude.ai
-2. Paste `docs/shepherd_system_prompt.md` as the project instructions
-3. Upload the CSV files from `data/` as project knowledge
-4. Claude becomes your agent — screen-record the conversation for your demo
-
----
-
-## Judging criteria
-
-| Criterion | Weight |
-|---|---|
-| Problem Framing — real, specific problem | 20% |
-| Agent Design — multi-step, tool-using, goal-directed | 25% |
-| Human-in-the-Loop — does human input meaningfully change the outcome? | 20% |
-| Data Use — creative use of the dataset, not just loading it | 15% |
-| Demo & Storytelling — problem → approach → demo → impact in 5 min | 20% |
-
----
-
-## Demo tip: use these patients
-
-| Patient | Why they're compelling |
-|---|---|
-| Giovanni Paucek | 63 ED/inpatient visits, $3.4M, 21 chronic conditions, overdose |
-| Lindsay Brekke | 44 ED visits, chronic migraine, 10 conditions, NO active care plan |
-| Chantelle Oberbrunner | 52 visits, $2.5M, 17 conditions, overdose |
-| Soledad White | 35 chronic conditions (highest complexity), $276K ED/inpatient |
-| Chad | 46 visits, $2.8M, 17 conditions, drug abuse |
-
----
-
-## Stuck? Use the Shepherd Agent
-
-Paste `docs/shepherd_system_prompt.md` into a Claude Project. Upload the CSVs. Ask it anything — it knows the dataset, the prompts, and the judging criteria. It will also tell you when you're over-scoping.
+Tables: `patient_summary`, `encounters`, `conditions`, `medications`, `observations`, `procedures`, `claims_transactions`, `careplans`, `patients`
