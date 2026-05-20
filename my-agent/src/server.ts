@@ -649,112 +649,11 @@ If the user asks to schedule a reminder unrelated to a patient, use the schedule
           }
         }),
 
-        // Draft outreach for a high-risk patient — always requires human approval
-        sendOutreach: tool({
-          description:
-            "Draft and send a care coordinator outreach message to a high-risk patient. " +
-            "ALWAYS requires human approval before sending — never execute without confirmation. " +
-            "Use this after identifying a patient who needs intervention.",
-          inputSchema: z.object({
-            patientName: z.string().describe("Full patient name"),
-            reason: z
-              .string()
-              .describe("Brief clinical justification for outreach"),
-            subject: z
-              .string()
-              .describe("Subject line of the outreach message"),
-            body: z
-              .string()
-              .describe(
-                "Full outreach message body for the coordinator to review and approve"
-              ),
-            coordinatorNote: z
-              .string()
-              .optional()
-              .describe(
-                "Optional note added by the coordinator before approving"
-              )
-          }),
-          needsApproval: async () => true,
-          execute: async ({ patientName, reason, body, coordinatorNote }) => {
-            const id = `d_${Date.now()}`;
-            this.sql`
-              INSERT INTO decisions (id, patient_id, patient_name, action, draft_message, coordinator_note)
-              VALUES (
-                ${id},
-                ${"unknown"},
-                ${patientName},
-                ${reason},
-                ${body},
-                ${coordinatorNote ?? null}
-              )
-            `;
-            this.broadcast(JSON.stringify({ type: "decision-recorded", id }));
-            return {
-              status: "sent",
-              decisionId: id,
-              message: `Outreach for ${patientName} approved and logged to the audit trail.`,
-              timestamp: new Date().toISOString()
-            };
-          }
-        }),
-
-        // Server-side tool: runs automatically on the server
-        getWeather: tool({
-          description: "Get the current weather for a city",
-          inputSchema: z.object({
-            city: z.string().describe("City name")
-          }),
-          execute: async ({ city }) => {
-            // Replace with a real weather API in production
-            const conditions = ["sunny", "cloudy", "rainy", "snowy"];
-            const temp = Math.floor(Math.random() * 30) + 5;
-            return {
-              city,
-              temperature: temp,
-              condition:
-                conditions[Math.floor(Math.random() * conditions.length)],
-              unit: "celsius"
-            };
-          }
-        }),
-
         // Client-side tool: no execute function — the browser handles it
         getUserTimezone: tool({
           description:
             "Get the user's timezone from their browser. Use this when you need to know the user's local time.",
           inputSchema: z.object({})
-        }),
-
-        // Approval tool: requires user confirmation before executing
-        calculate: tool({
-          description:
-            "Perform a math calculation with two numbers. Requires user approval for large numbers.",
-          inputSchema: z.object({
-            a: z.number().describe("First number"),
-            b: z.number().describe("Second number"),
-            operator: z
-              .enum(["+", "-", "*", "/", "%"])
-              .describe("Arithmetic operator")
-          }),
-          needsApproval: async ({ a, b }) =>
-            Math.abs(a) > 1000 || Math.abs(b) > 1000,
-          execute: async ({ a, b, operator }) => {
-            const ops: Record<string, (x: number, y: number) => number> = {
-              "+": (x, y) => x + y,
-              "-": (x, y) => x - y,
-              "*": (x, y) => x * y,
-              "/": (x, y) => x / y,
-              "%": (x, y) => x % y
-            };
-            if (operator === "/" && b === 0) {
-              return { error: "Division by zero" };
-            }
-            return {
-              expression: `${a} ${operator} ${b}`,
-              result: ops[operator](a, b)
-            };
-          }
         }),
 
         scheduleTask: tool({
